@@ -19,7 +19,7 @@ required CI checks, and human approval remain the source of truth.
 ## Repository setup in GitHub
 
 - Protect `main` and require pull requests.
-- Require the `quality` and `integration` CI jobs.
+- Require the `quality`, `integration`, and `docker-smoke` CI jobs.
 - Require at least one approval and dismissal of stale approvals.
 - Disable force pushes and branch deletion for `main`.
 - Connect the repository to Codex Cloud and enable Code Review if available.
@@ -27,4 +27,3 @@ required CI checks, and human approval remain the source of truth.
 GitHub access for creating issues, moving project cards, and opening PRs is handled
 through the connected GitHub integration. Repository review behavior is governed by
 the `Code Review Rules` section in the root `AGENTS.md`.
-
