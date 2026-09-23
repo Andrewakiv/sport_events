@@ -1,0 +1,1 @@
+"""Persisted sports-event records."""

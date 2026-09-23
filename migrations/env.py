@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from sport_events.database.base import DatabaseModel
+from sport_events.database.models.football import FootballCompetition
 from sport_events.settings import get_settings
 
 config = context.config
@@ -14,7 +14,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))
-target_metadata = DatabaseModel.metadata
+target_metadata = FootballCompetition.metadata
 
 
 def run_migrations_offline() -> None:
@@ -47,7 +47,11 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    asyncio.run(run_async_migrations())
+    connection = config.attributes.get("connection")
+    if connection is None:
+        asyncio.run(run_async_migrations())
+    else:
+        do_run_migrations(connection)
 
 
 if context.is_offline_mode():
