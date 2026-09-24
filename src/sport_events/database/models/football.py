@@ -12,7 +12,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sport_events.database.base import DatabaseModel
 
@@ -37,6 +37,7 @@ class FootballSeason(DatabaseModel):
     provider_id: Mapped[int]
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
+    competition: Mapped[FootballCompetition] = relationship()
 
 
 class FootballTeam(DatabaseModel):
@@ -74,3 +75,6 @@ class FootballMatch(DatabaseModel):
     home_score: Mapped[int | None]
     away_score: Mapped[int | None]
     score_duration: Mapped[str | None] = mapped_column(String(30))
+    season: Mapped[FootballSeason] = relationship()
+    home_team: Mapped[FootballTeam | None] = relationship(foreign_keys=[home_team_id])
+    away_team: Mapped[FootballTeam | None] = relationship(foreign_keys=[away_team_id])

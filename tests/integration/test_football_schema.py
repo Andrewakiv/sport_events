@@ -7,7 +7,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import insert, inspect, select, text, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from sport_events.database.models.football import (
     FootballCompetition,
@@ -122,6 +123,26 @@ async def test_football_migration_and_match_constraints() -> None:
                 )
             ).one()
             assert scores == (2, 1)
+
+            async with AsyncSession(bind=connection) as session:
+                match = (
+                    await session.scalars(
+                        select(FootballMatch)
+                        .options(
+                            selectinload(FootballMatch.season).selectinload(
+                                FootballSeason.competition
+                            ),
+                            selectinload(FootballMatch.home_team),
+                            selectinload(FootballMatch.away_team),
+                        )
+                        .where(FootballMatch.id == match_id)
+                    )
+                ).one()
+                assert match.season.competition.code == "CL"
+                assert match.home_team is not None
+                assert match.home_team.name == "Racing Club de Lens"
+                assert match.away_team is not None
+                assert match.away_team.name == "Sporting Clube de Portugal"
 
             with pytest.raises(IntegrityError):
                 async with connection.begin_nested():
