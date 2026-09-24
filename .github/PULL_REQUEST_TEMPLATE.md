@@ -10,11 +10,11 @@ Closes #
 
 ## Verification
 
-- [ ] `ruff check .`
-- [ ] `ruff format --check .`
-- [ ] `mypy`
-- [ ] `pytest -m "not integration" --cov`
-- [ ] Integration tests, when applicable
+- [ ] `uv run --locked ruff check .`
+- [ ] `uv run --locked ruff format --check .`
+- [ ] `uv run --locked mypy`
+- [ ] `uv run --locked pytest -m "not integration" --cov`
+- [ ] `uv run --locked pytest -m integration` when changing database connections, models, migrations, or behavior
 
 ## Database and operational impact
 
@@ -23,4 +23,3 @@ Closes #
 ## Risks
 
 <!-- Known risks or "None". -->
-

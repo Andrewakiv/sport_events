@@ -4,25 +4,26 @@ Backend service for storing and exposing football and Formula 1 results.
 
 ## Current scope
 
-This first increment provides the project skeleton, PostgreSQL connectivity,
-health endpoints, Docker development environment, automated tests, CI, and
-repository guidance for human and AI contributors.
+The repository currently provides PostgreSQL connectivity, health endpoints,
+Docker development, automated tests and CI, and football persistence models and
+migrations. Provider ingestion, event query endpoints, and Formula 1 persistence
+are not implemented yet.
 
 ## Quick start
 
 ```bash
-cp .env.example .env
 docker compose up --build
 ```
 
-In another terminal, apply the empty Alembic baseline to a fresh database:
+The Docker Compose setup supplies database configuration directly; a local
+`.env` file is not required for this path. In another terminal, apply the
+Alembic migrations to a fresh database:
 
 ```bash
 docker compose exec api alembic upgrade head
 ```
 
-The baseline only records the migration version. Business tables will be added
-when their behavior is agreed.
+The migrations create the football competition, season, team, and match tables.
 
 Open:
 
@@ -53,9 +54,10 @@ Integration tests require PostgreSQL and `SPORT_EVENTS_TEST_DATABASE_URL`.
 - `database`: SQLAlchemy base and PostgreSQL connection management.
 - `settings.py`: environment-based application configuration.
 
-Football and Formula 1 modules are intentionally absent. They will be introduced
-only after the first business scenario and its acceptance criteria are agreed.
-The project avoids placeholder models, repositories, and use cases that do not yet
-represent confirmed behavior.
+Football ORM models and relationships live in `database/models/football.py`.
+There is no football import or read API and no Formula 1 implementation yet.
 
-See [docs/agent-workflow.md](docs/agent-workflow.md) for the GitHub workflow.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for implemented components,
+[docs/product-scope.md](docs/product-scope.md) for agreed scope versus open
+decisions, and [docs/agent-workflow.md](docs/agent-workflow.md) for the GitHub
+workflow.

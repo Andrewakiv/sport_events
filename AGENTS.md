@@ -9,6 +9,13 @@
 - Prefer explicit, typed code over framework magic.
 - Use `uv` for dependency management, commit `uv.lock`, and do not install project dependencies with `pip` directly.
 
+## Project context
+
+- For changes to component boundaries or data flow, consult `ARCHITECTURE.md`.
+- For feature decisions, consult `docs/product-scope.md`. For Champions League provider work, also consult `docs/champions-league-provider-contract.md`.
+- For issue, board, review, and merge steps, consult `docs/agent-workflow.md`.
+- Read the issue or pull request and its current comments and checks for task-specific state. Use only the documents relevant to that task; previous chat history is not a source of truth.
+
 ## Architecture
 
 - Introduce files and abstractions only when they are required by agreed behavior.
