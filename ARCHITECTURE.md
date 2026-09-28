@@ -18,6 +18,6 @@ The current migration creates `football_competitions`, `football_seasons`, `foot
 - A match can reference a home and an away team through separate, nullable foreign keys. Its ORM relationships are `home_team` and `away_team`; it also has a `season` relationship. A season has a `competition` relationship.
 - Competition, team, and match provider IDs are unique. A season provider ID is unique within its competition. Scores are either both absent or both present and non-negative.
 
-The models and migration are a storage schema, not an importer. The provider client is not wired to a synchronization job. There is no scheduled synchronization, football read API, or Formula 1 schema yet. The observed Champions League input fields and limits are recorded in [the provider contract](docs/champions-league-provider-contract.md), which is not a database schema.
+The models and migration are a storage schema, not an importer. The provider client is not wired to a synchronization job. There is no scheduled synchronization, football read API, Formula 1 client, or Formula 1 schema yet. The observed Champions League and Formula 1 input fields and limits are recorded in their [football](docs/champions-league-provider-contract.md) and [Jolpica](docs/jolpica-f1-provider-contract.md) provider contracts, which are not database schemas.
 
 When business rules are added, keep them in plain Python independent of FastAPI, SQLAlchemy, and provider clients. Add a new abstraction only when a concrete behavior needs it.

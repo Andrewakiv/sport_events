@@ -10,7 +10,10 @@ implementation details in the code and migrations.
 - Start football with the UEFA Champions League. The initial source is football-data.org API v4; the [observed provider contract](champions-league-provider-contract.md) covers four accessible seasons, 2023/24 through 2026/27.
 - Include scheduled fixtures as well as finished matches. Do not build live updates in the initial increment; their value, limits, and refresh cost need a separate decision.
 - PostgreSQL is the persistent store. Schema changes go through Alembic.
-- Jolpica is the intended initial Formula 1 source, but its input contract and persistence design have not been agreed.
+- Jolpica's Ergast-compatible API is the initial Formula 1 source. The
+  [observed provider contract](jolpica-f1-provider-contract.md) covers calendars,
+  qualifying, sprint, and race results for 2023–2026. Persistence design remains
+  undecided.
 
 ## Decisions still to make per issue
 

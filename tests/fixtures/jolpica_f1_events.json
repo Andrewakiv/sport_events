@@ -1,0 +1,126 @@
+{
+  "source": "Jolpica F1 Ergast-compatible API",
+  "captured_on": "2026-09-29",
+  "note": "Selected fields from actual unauthenticated responses. URLs, biographical fields, and unneeded classification rows were omitted; retained values were not changed.",
+  "cases": [
+    {
+      "name": "scheduled_non_sprint_weekend",
+      "calendar": {
+        "season": "2026",
+        "round": "23",
+        "raceName": "Abu Dhabi Grand Prix",
+        "Circuit": {
+          "circuitId": "yas_marina",
+          "circuitName": "Yas Marina Circuit",
+          "Location": {
+            "lat": "24.4672",
+            "long": "54.6031",
+            "locality": "Abu Dhabi",
+            "country": "UAE"
+          }
+        },
+        "date": "2026-12-06",
+        "time": "13:00:00Z",
+        "FirstPractice": {"date": "2026-12-04", "time": "09:30:00Z"},
+        "SecondPractice": {"date": "2026-12-04", "time": "13:00:00Z"},
+        "ThirdPractice": {"date": "2026-12-05", "time": "10:30:00Z"},
+        "Qualifying": {"date": "2026-12-05", "time": "14:00:00Z"}
+      },
+      "responses": {
+        "qualifying": {"total": "0", "Races": []},
+        "sprint": {"total": "0", "Races": []},
+        "race": {"total": "0", "Races": []}
+      }
+    },
+    {
+      "name": "completed_non_sprint_weekend",
+      "calendar": {
+        "season": "2025",
+        "round": "8",
+        "raceName": "Monaco Grand Prix",
+        "Circuit": {
+          "circuitId": "monaco",
+          "circuitName": "Circuit de Monaco",
+          "Location": {
+            "lat": "43.7347",
+            "long": "7.42056",
+            "locality": "Monte Carlo",
+            "country": "Monaco"
+          }
+        },
+        "date": "2025-05-25",
+        "time": "13:00:00Z",
+        "FirstPractice": {"date": "2025-05-23", "time": "11:30:00Z"},
+        "SecondPractice": {"date": "2025-05-23", "time": "15:00:00Z"},
+        "ThirdPractice": {"date": "2025-05-24", "time": "10:30:00Z"},
+        "Qualifying": {"date": "2025-05-24", "time": "14:00:00Z"}
+      },
+      "responses": {
+        "qualifying": {
+          "total": "20",
+          "Races": [
+            {
+              "season": "2025",
+              "round": "8",
+              "QualifyingResults": [
+                {
+                  "number": "4",
+                  "position": "1",
+                  "Driver": {"driverId": "norris", "code": "NOR"},
+                  "Constructor": {"constructorId": "mclaren", "name": "McLaren"},
+                  "Q1": "1:11.285",
+                  "Q2": "1:10.570",
+                  "Q3": "1:09.954"
+                },
+                {
+                  "number": "43",
+                  "position": "20",
+                  "Driver": {"driverId": "colapinto", "code": "COL"},
+                  "Constructor": {"constructorId": "alpine", "name": "Alpine F1 Team"},
+                  "Q1": "1:12.597"
+                }
+              ]
+            }
+          ]
+        },
+        "sprint": {"total": "0", "Races": []},
+        "race": {
+          "total": "20",
+          "Races": [
+            {
+              "season": "2025",
+              "round": "8",
+              "Results": [
+                {
+                  "number": "4",
+                  "position": "1",
+                  "positionText": "1",
+                  "points": "25",
+                  "Driver": {"driverId": "norris", "code": "NOR"},
+                  "Constructor": {"constructorId": "mclaren", "name": "McLaren"},
+                  "grid": "1",
+                  "laps": "78",
+                  "status": "Finished",
+                  "Time": {"millis": "6033843", "time": "1:40:33.843"},
+                  "FastestLap": {"rank": "1", "lap": "78", "Time": {"time": "1:13.221"}}
+                },
+                {
+                  "number": "14",
+                  "position": "19",
+                  "positionText": "R",
+                  "points": "0",
+                  "Driver": {"driverId": "alonso", "code": "ALO"},
+                  "Constructor": {"constructorId": "aston_martin", "name": "Aston Martin"},
+                  "grid": "6",
+                  "laps": "36",
+                  "status": "Retired",
+                  "FastestLap": {"rank": "18", "lap": "15", "Time": {"time": "1:15.593"}}
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
