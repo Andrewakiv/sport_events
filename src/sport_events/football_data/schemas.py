@@ -1,4 +1,4 @@
-"""Validated football-data.org match data used by the client."""
+"""Pydantic schemas for football-data.org match responses."""
 
 from datetime import date
 
