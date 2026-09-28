@@ -38,6 +38,7 @@ class FootballDataClient:
                 params={"season": season_start_year},
                 headers={"X-Auth-Token": self._token.get_secret_value()},
                 timeout=REQUEST_TIMEOUT,
+                follow_redirects=False,
             )
         except httpx.TimeoutException as exc:
             raise FootballDataTimeoutError("football-data.org request timed out") from exc
@@ -51,7 +52,7 @@ class FootballDataClient:
             )
         if status == 429:
             raise FootballDataRateLimitError("football-data.org rate limit exceeded (HTTP 429)")
-        if status >= 400:
+        if status >= 300:
             raise FootballDataProviderError(f"football-data.org returned HTTP {status}")
 
         try:

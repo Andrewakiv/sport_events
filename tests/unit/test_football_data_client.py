@@ -94,6 +94,28 @@ async def test_classifies_http_failures(
     assert "test-token" not in str(error.value)
 
 
+@pytest.mark.asyncio
+async def test_does_not_forward_token_on_redirect(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = configured_settings(monkeypatch)
+    requests: list[httpx.Request] = []
+
+    def redirect(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.host != "api.football-data.org":
+            pytest.fail("The provider token must not be forwarded to another origin")
+        return httpx.Response(302, headers={"Location": "https://other.example/matches"})
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(redirect), follow_redirects=True
+    ) as http_client:
+        client = FootballDataClient(settings=settings, http_client=http_client)
+        with pytest.raises(FootballDataProviderError, match="HTTP 302"):
+            await client.get_champions_league_matches(2026)
+
+    assert len(requests) == 1
+    assert requests[0].headers["X-Auth-Token"] == "test-token"
+
+
 @pytest.mark.parametrize(
     "body",
     [
