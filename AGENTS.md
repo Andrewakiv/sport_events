@@ -38,9 +38,10 @@
 
 ## Git and pull requests
 
+- Before implementation, ensure an existing GitHub Issue is on the project board with relevant labels; no issue means no PR.
 - Use branches named `feat/<issue>-<slug>`, `fix/<issue>-<slug>`, or `chore/<issue>-<slug>`.
 - Use Conventional Commits.
-- Include the linked issue, acceptance criteria, test evidence, migration impact, and risks in the PR.
+- Link every PR to its issue with `Closes #<number>` or `Refs #<number>` in the description, and include acceptance criteria, test evidence, migration impact, and risks.
 - Never merge while required CI checks are failing.
 - After required CI passes and a human approves, use GitHub **Squash and merge** for every PR; do not use merge commits or rebase merges.
 - Give the squash commit a Conventional Commit title with the issue number, for example `chore: document squash merge policy (#16)`.
