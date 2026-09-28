@@ -8,9 +8,9 @@ from typing import Any
 import httpx
 import pytest
 
-from sport_events.football_data.client import (
+from sport_events.football_data.client import FootballDataClient
+from sport_events.football_data.errors import (
     FootballDataAuthenticationError,
-    FootballDataClient,
     FootballDataConfigurationError,
     FootballDataNetworkError,
     FootballDataProviderError,
