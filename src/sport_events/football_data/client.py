@@ -11,7 +11,7 @@ from sport_events.football_data.errors import (
     FootballDataResponseError,
     FootballDataTimeoutError,
 )
-from sport_events.football_data.responses import FootballDataMatch, FootballDataMatchesResponse
+from sport_events.football_data.match_data import FootballDataMatch, FootballDataMatchesResponse
 from sport_events.settings import Settings
 
 MATCHES_URL = "https://api.football-data.org/v4/competitions/CL/matches"

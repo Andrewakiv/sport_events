@@ -1,4 +1,4 @@
-"""Typed fields used from football-data.org match-list responses."""
+"""Validated football-data.org match data used by the client."""
 
 from datetime import date
 
