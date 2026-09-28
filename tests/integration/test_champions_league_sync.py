@@ -1,0 +1,219 @@
+import asyncio
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
+from typing import NoReturn
+from uuid import uuid4
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+
+from sport_events.database.football_sync import (
+    PostgresSeasonSnapshotStore,
+    PostgresSeasonSyncLock,
+)
+from sport_events.database.models.football import (
+    FootballCompetition,
+    FootballMatch,
+    FootballSeason,
+    FootballTeam,
+)
+from sport_events.football_sync.models import (
+    CompetitionRecord,
+    MatchRecord,
+    SeasonRecord,
+    SeasonSnapshot,
+    SyncResult,
+    TeamRecord,
+)
+from sport_events.football_sync.operation import (
+    ChampionsLeagueSyncAlreadyRunningError,
+    SynchronizeChampionsLeagueSeason,
+)
+
+
+@asynccontextmanager
+async def migrated_engine() -> AsyncIterator[AsyncEngine]:
+    database_url = os.getenv("SPORT_EVENTS_TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("SPORT_EVENTS_TEST_DATABASE_URL is not configured")
+
+    admin_engine = create_async_engine(database_url)
+    schema = f"test_sync_{uuid4().hex}"
+    config = Config("alembic.ini")
+    try:
+        async with admin_engine.begin() as connection:
+            await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+        engine = create_async_engine(
+            database_url, connect_args={"server_settings": {"search_path": schema}}
+        )
+        try:
+            async with engine.begin() as connection:
+
+                def migrate(sync_connection: object) -> None:
+                    config.attributes["connection"] = sync_connection
+                    command.upgrade(config, "head")
+
+                await connection.run_sync(migrate)
+            yield engine
+        finally:
+            await engine.dispose()
+    finally:
+        async with admin_engine.begin() as connection:
+            await connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        await admin_engine.dispose()
+
+
+def season_snapshot() -> SeasonSnapshot:
+    home = TeamRecord(851, "Club Brugge KV")
+    away = TeamRecord(58, "Aston Villa FC")
+    return SeasonSnapshot(
+        competition=CompetitionRecord(2001, "CL", "UEFA Champions League"),
+        season=SeasonRecord(2557, date(2026, 9, 8), date(2027, 1, 27)),
+        matches=(
+            MatchRecord(
+                provider_id=575323,
+                kickoff_at=datetime(2026, 9, 8, 16, 45, tzinfo=UTC),
+                status="FINISHED",
+                stage="LEAGUE_STAGE",
+                matchday=1,
+                group_name=None,
+                home_team=home,
+                away_team=away,
+                home_score=2,
+                away_score=3,
+                score_duration="REGULAR",
+            ),
+            MatchRecord(
+                provider_id=575341,
+                kickoff_at=datetime(2026, 10, 13, 16, 45, tzinfo=UTC),
+                status="TIMED",
+                stage="LEAGUE_STAGE",
+                matchday=2,
+                group_name=None,
+                home_team=None,
+                away_team=None,
+                home_score=None,
+                away_score=None,
+                score_duration="REGULAR",
+            ),
+        ),
+    )
+
+
+@pytest.mark.integration
+async def test_repeat_import_corrections_and_provider_omissions() -> None:
+    async with migrated_engine() as engine:
+        store = PostgresSeasonSnapshotStore(engine)
+        original = season_snapshot()
+        assert await store.store(original) == SyncResult(matches_processed=2)
+        await store.store(original)
+
+        corrected_match = replace(
+            original.matches[1],
+            kickoff_at=original.matches[1].kickoff_at + timedelta(hours=2),
+            status="FINISHED",
+            home_team=TeamRecord(546, "Racing Club de Lens"),
+            away_team=TeamRecord(498, "Sporting Clube de Portugal"),
+            home_score=1,
+            away_score=0,
+        )
+        corrected = replace(original, matches=(corrected_match,))
+        await store.store(corrected)
+
+        async with engine.connect() as connection:
+            assert (
+                await connection.scalar(select(func.count()).select_from(FootballCompetition)) == 1
+            )
+            assert await connection.scalar(select(func.count()).select_from(FootballSeason)) == 1
+            assert await connection.scalar(select(func.count()).select_from(FootballMatch)) == 2
+            stored = (
+                await connection.execute(
+                    select(
+                        FootballMatch.kickoff_at,
+                        FootballMatch.status,
+                        FootballMatch.home_score,
+                        FootballMatch.away_score,
+                        FootballTeam.provider_id,
+                    )
+                    .join(FootballTeam, FootballMatch.home_team_id == FootballTeam.id)
+                    .where(FootballMatch.provider_id == corrected_match.provider_id)
+                )
+            ).one()
+            assert stored == (
+                corrected_match.kickoff_at,
+                "FINISHED",
+                1,
+                0,
+                546,
+            )
+
+
+@pytest.mark.integration
+async def test_persistence_failure_rolls_back_whole_season() -> None:
+    async with migrated_engine() as engine:
+        invalid_match = replace(season_snapshot().matches[0], status="x" * 31)
+        invalid = replace(season_snapshot(), matches=(season_snapshot().matches[1], invalid_match))
+
+        with pytest.raises(DBAPIError):
+            await PostgresSeasonSnapshotStore(engine).store(invalid)
+
+        async with engine.connect() as connection:
+            assert (
+                await connection.scalar(select(func.count()).select_from(FootballCompetition)) == 0
+            )
+            assert await connection.scalar(select(func.count()).select_from(FootballSeason)) == 0
+            assert await connection.scalar(select(func.count()).select_from(FootballTeam)) == 0
+            assert await connection.scalar(select(func.count()).select_from(FootballMatch)) == 0
+
+
+class BlockingSource:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def fetch_season(self, season_start_year: int) -> SeasonSnapshot:
+        self.started.set()
+        await self.release.wait()
+        return season_snapshot()
+
+
+class UnexpectedSource:
+    async def fetch_season(self, season_start_year: int) -> NoReturn:
+        raise AssertionError("overlapping run must fail before fetching")
+
+
+class NoopStore:
+    async def store(self, snapshot: SeasonSnapshot) -> SyncResult:
+        return SyncResult(matches_processed=len(snapshot.matches))
+
+
+@pytest.mark.integration
+async def test_overlapping_same_season_is_rejected_before_fetch() -> None:
+    async with migrated_engine() as engine:
+        blocking_source = BlockingSource()
+        first = SynchronizeChampionsLeagueSeason(
+            source=blocking_source,
+            store=NoopStore(),
+            lock=PostgresSeasonSyncLock(engine),
+        )
+        second = SynchronizeChampionsLeagueSeason(
+            source=UnexpectedSource(),
+            store=NoopStore(),
+            lock=PostgresSeasonSyncLock(engine),
+        )
+
+        first_task = asyncio.create_task(first.execute(2026))
+        await blocking_source.started.wait()
+        try:
+            with pytest.raises(ChampionsLeagueSyncAlreadyRunningError):
+                await second.execute(2026)
+        finally:
+            blocking_source.release.set()
+        assert await first_task == SyncResult(matches_processed=2)

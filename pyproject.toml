@@ -18,6 +18,9 @@ dependencies = [
     "uvicorn[standard]>=0.32,<1.0",
 ]
 
+[project.scripts]
+sync-champions-league = "sport_events.commands.sync_champions_league:main"
+
 [dependency-groups]
 dev = [
     "httpx>=0.27,<1.0",
