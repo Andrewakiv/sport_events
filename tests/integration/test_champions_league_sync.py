@@ -189,13 +189,18 @@ class UnexpectedSource:
         raise AssertionError("overlapping run must fail before fetching")
 
 
+class FailingSource:
+    async def fetch_season(self, season_start_year: int) -> NoReturn:
+        raise RuntimeError("provider fetch failed")
+
+
 class NoopStore:
     async def store(self, snapshot: SeasonSnapshot) -> SyncResult:
         return SyncResult(matches_processed=len(snapshot.matches))
 
 
 @pytest.mark.integration
-async def test_overlapping_same_season_is_rejected_before_fetch() -> None:
+async def test_lock_ends_transaction_rejects_overlap_and_releases() -> None:
     async with migrated_engine() as engine:
         blocking_source = BlockingSource()
         first = SynchronizeChampionsLeagueSeason(
@@ -212,8 +217,51 @@ async def test_overlapping_same_season_is_rejected_before_fetch() -> None:
         first_task = asyncio.create_task(first.execute(2026))
         await blocking_source.started.wait()
         try:
+            async with engine.connect() as observer:
+                lock_rows = await observer.execute(
+                    text(
+                        """
+                            SELECT activity.state
+                            FROM pg_locks AS locks
+                            JOIN pg_stat_activity AS activity ON activity.pid = locks.pid
+                            WHERE locks.locktype = 'advisory'
+                              AND locks.classid = :namespace
+                              AND locks.objid = :season
+                              AND locks.granted
+                        """
+                    ),
+                    {"namespace": 7_200_001, "season": 2026},
+                )
+                lock_states = lock_rows.scalars().all()
+            assert lock_states == ["idle"]
+
             with pytest.raises(ChampionsLeagueSyncAlreadyRunningError):
                 await second.execute(2026)
         finally:
             blocking_source.release.set()
         assert await first_task == SyncResult(matches_processed=2)
+
+        failing = SynchronizeChampionsLeagueSeason(
+            source=FailingSource(),
+            store=NoopStore(),
+            lock=PostgresSeasonSyncLock(engine),
+        )
+        with pytest.raises(RuntimeError, match="provider fetch failed"):
+            await failing.execute(2026)
+
+        async with engine.connect() as observer:
+            held_locks = await observer.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM pg_locks
+                    WHERE locktype = 'advisory'
+                      AND classid = :namespace
+                      AND objid = :season
+                      AND granted
+                    """
+                ),
+                {"namespace": 7_200_001, "season": 2026},
+            )
+        assert held_locks == 0
+        assert await first.execute(2026) == SyncResult(matches_processed=2)

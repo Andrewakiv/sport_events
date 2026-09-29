@@ -31,16 +31,23 @@ class PostgresSeasonSyncLock:
                 {"namespace": _ADVISORY_LOCK_NAMESPACE, "season": season_start_year},
             )
             if acquired is not True:
+                await connection.rollback()
                 raise ChampionsLeagueSyncAlreadyRunningError(
                     f"Champions League season {season_start_year} is already being synchronized"
                 )
+            await connection.commit()
             try:
                 yield
             finally:
-                await connection.execute(
+                unlocked = await connection.scalar(
                     text("SELECT pg_advisory_unlock(:namespace, :season)"),
                     {"namespace": _ADVISORY_LOCK_NAMESPACE, "season": season_start_year},
                 )
+                await connection.commit()
+                if unlocked is not True:
+                    raise RuntimeError(
+                        f"Champions League season {season_start_year} lock was not held"
+                    )
 
 
 class PostgresSeasonSnapshotStore:
