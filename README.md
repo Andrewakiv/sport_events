@@ -6,8 +6,9 @@ Backend service for storing and exposing football and Formula 1 results.
 
 The repository currently provides PostgreSQL connectivity, health endpoints,
 Docker development, automated tests and CI, football persistence models and
-migrations, and an isolated football-data.org client. Provider ingestion, event
-query endpoints, and Formula 1 persistence are not implemented yet.
+migrations, an isolated football-data.org client, and an idempotent Champions
+League season synchronization operation. Event query endpoints and Formula 1
+persistence are not implemented yet.
 
 ## Quick start
 
@@ -51,16 +52,28 @@ The football-data.org client reads `FOOTBALL_DATA_API_TOKEN` from the local
 environment or `.env`. The token is only needed when calling that client; the
 API and tests do not call the provider automatically. Never commit a real token.
 
+After applying migrations, synchronize one selected season manually with its
+start year:
+
+```bash
+uv run --locked sync-champions-league 2026
+```
+
+The command validates the complete provider response before its single database
+write transaction. Imports of the same season cannot overlap, repeated imports
+update existing records, and provider omissions do not delete stored matches.
+
 ## Architecture
 
 - `api/routes`: FastAPI route handlers.
 - `api/schemas`: Pydantic request and response schemas.
 - `database`: SQLAlchemy base and PostgreSQL connection management.
 - `football_data`: Champions League provider HTTP client and response types.
+- `football_sync`: provider- and database-independent synchronization records and operation.
 - `settings.py`: environment-based application configuration.
 
 Football ORM models and relationships live in `database/models/football.py`.
-There is no football import job or read API and no Formula 1 implementation yet.
+There is no scheduled import, football read API, or Formula 1 implementation yet.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for implemented components,
 [docs/product-scope.md](docs/product-scope.md) for agreed scope versus open
