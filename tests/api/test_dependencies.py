@@ -66,12 +66,13 @@ async def test_query_dependency_injects_the_provided_session() -> None:
         assert queries._session is session
 
 
-async def test_read_session_isolation_does_not_change_shared_engine() -> None:
+async def test_read_session_uses_engine_without_overriding_isolation() -> None:
     database = Database("postgresql+asyncpg://unused")
     try:
         async with database.read_session() as session:
             assert session.bind is not None
-            assert session.bind.get_execution_options()["isolation_level"] == "REPEATABLE READ"
+            assert session.bind is database._engine
+            assert "isolation_level" not in session.bind.get_execution_options()
             assert "isolation_level" not in database._engine.get_execution_options()
             assert session.bind.pool is database._engine.pool
     finally:

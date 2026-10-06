@@ -2,7 +2,7 @@
 
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
@@ -17,11 +17,7 @@ from sport_events.football_models import Match, MatchFilters, MatchPage, Score, 
 
 
 class ChampionsLeagueMatchQueries:
-    """Execute match queries using a caller-owned session.
-
-    The caller owns isolation and cleanup. Use a REPEATABLE READ transaction
-    to keep the filtered count and page on the same snapshot.
-    """
+    """Execute match queries using a caller-owned session and default isolation."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -30,8 +26,8 @@ class ChampionsLeagueMatchQueries:
         home_team = aliased(FootballTeam)
         away_team = aliased(FootballTeam)
         filters = _filters(query, home_team, away_team)
-        statement = (
-            select(FootballMatch, FootballSeason, home_team, away_team)
+        filtered = (
+            select(FootballMatch.id, FootballMatch.kickoff_at, FootballMatch.provider_id)
             .join(FootballSeason, FootballMatch.season_id == FootballSeason.id)
             .join(
                 FootballCompetition,
@@ -40,26 +36,35 @@ class ChampionsLeagueMatchQueries:
             .outerjoin(home_team, FootballMatch.home_team_id == home_team.id)
             .outerjoin(away_team, FootballMatch.away_team_id == away_team.id)
             .where(*filters)
-            .order_by(FootballMatch.kickoff_at, FootballMatch.provider_id)
+            .cte("filtered_matches")
+        )
+        page = (
+            select(filtered.c.id, filtered.c.kickoff_at, filtered.c.provider_id)
+            .order_by(filtered.c.kickoff_at, filtered.c.provider_id)
             .limit(query.limit)
             .offset(query.offset)
+            .cte("match_page")
         )
-        count_statement = (
-            select(func.count(FootballMatch.id))
-            .join(FootballSeason, FootballMatch.season_id == FootballSeason.id)
-            .join(
-                FootballCompetition,
-                FootballSeason.competition_id == FootballCompetition.id,
-            )
+        count = select(func.count().label("total")).select_from(filtered).subquery()
+        # One statement shares one snapshot; the count survives an empty page.
+        statement = (
+            select(count.c.total, FootballMatch, FootballSeason, home_team, away_team)
+            .select_from(count)
+            .outerjoin(page, true())
+            .outerjoin(FootballMatch, FootballMatch.id == page.c.id)
+            .outerjoin(FootballSeason, FootballMatch.season_id == FootballSeason.id)
             .outerjoin(home_team, FootballMatch.home_team_id == home_team.id)
             .outerjoin(away_team, FootballMatch.away_team_id == away_team.id)
-            .where(*filters)
+            .order_by(page.c.kickoff_at, page.c.provider_id)
         )
-        total = await self._session.scalar(count_statement)
         rows = (await self._session.execute(statement)).all()
         return MatchPage(
-            items=[_to_match(match, season, home, away) for match, season, home, away in rows],
-            total=total or 0,
+            items=[
+                _to_match(match, season, home, away)
+                for _, match, season, home, away in rows
+                if match is not None
+            ],
+            total=rows[0][0],
             limit=query.limit,
             offset=query.offset,
         )

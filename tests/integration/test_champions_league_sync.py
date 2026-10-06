@@ -306,7 +306,9 @@ async def test_match_reader_filters_orders_paginates_and_loads_detail() -> None:
             assert scheduled is not None
             assert scheduled.home_team is None and scheduled.away_team is None
             assert scheduled.score is None
-            assert (await reader.list_matches(MatchFilters(offset=100))).items == []
+            empty_page = await reader.list_matches(MatchFilters(offset=100))
+            assert empty_page.items == []
+            assert empty_page.total == 2
             assert (await reader.list_matches(MatchFilters(season=2025))).total == 0
             assert (await reader.list_matches(MatchFilters(date=date.max))).total == 0
 
@@ -341,14 +343,18 @@ async def test_read_api_keeps_count_and_page_on_one_snapshot(
         await store.store(snapshot)
         monkeypatch.setattr(connection_module, "create_async_engine", lambda *a, **kw: engine)
         database = Database("postgresql+asyncpg://unused")
-        original_scalar = AsyncSession.scalar
+        async with database.read_session() as session:
+            assert await session.scalar(text("SHOW transaction_isolation")) == "read committed"
+        original_execute = AsyncSession.execute
+        statements = 0
         updated = False
 
-        async def scalar_then_import(
+        async def execute_then_import(
             session: AsyncSession, statement: object, **kwargs: object
         ) -> object:
-            nonlocal updated
-            result = await original_scalar(session, statement, **kwargs)
+            nonlocal updated, statements
+            statements += 1
+            result = await original_execute(session, statement, **kwargs)
             if not updated:
                 updated = True
                 correction = replace(
@@ -357,7 +363,7 @@ async def test_read_api_keeps_count_and_page_on_one_snapshot(
                 await store.store(replace(snapshot, matches=(correction,)))
             return result
 
-        monkeypatch.setattr(AsyncSession, "scalar", scalar_then_import)
+        monkeypatch.setattr(AsyncSession, "execute", execute_then_import)
         app = create_app(database=database)
         app.dependency_overrides[get_database] = lambda: database
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -367,6 +373,7 @@ async def test_read_api_keeps_count_and_page_on_one_snapshot(
             assert response.status_code == 200
             body = response.json()
             assert updated
+            assert statements == 1
             assert body["total"] == 1
             assert len(body["items"]) == 1
             assert body["items"][0]["status"] == "TIMED"
@@ -378,6 +385,7 @@ async def test_read_api_keeps_count_and_page_on_one_snapshot(
             )
             assert next_response.json()["total"] == 0
             assert next_response.json()["items"] == []
+            assert statements == 2
             detail = await client.get("/api/v1/football/champions-league/matches/575341")
             assert detail.json()["status"] == "FINISHED"
             assert detail.json()["score"] == {"home": 0, "away": 0, "duration": "REGULAR"}

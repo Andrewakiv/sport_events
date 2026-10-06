@@ -21,8 +21,8 @@ class Database:
         return True
 
     def read_session(self) -> AsyncSession:
-        """Create a session whose reads share a snapshot until transaction end."""
-        return AsyncSession(self._engine.execution_options(isolation_level="REPEATABLE READ"))
+        """Create a caller-owned session using the database's default isolation."""
+        return AsyncSession(self._engine)
 
     async def close(self) -> None:
         await self._engine.dispose()
