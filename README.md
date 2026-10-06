@@ -94,8 +94,8 @@ updates data.
 - `database`: SQLAlchemy base and PostgreSQL connection management.
 - `football_data`: Champions League provider HTTP client and response types.
 - `football_sync`: provider- and database-independent synchronization records and operation.
-- `football_read`: plain-Python match views, query records, and reader protocol.
-- `queries`: SQLAlchemy readers using caller-owned sessions.
+- `football_models.py`: shared Pydantic filters and response models, without duplicate read DTOs.
+- `queries`: match queries using caller-owned sessions, returning the shared response models.
 - `settings.py`: environment-based application configuration.
 
 Football ORM models and relationships live in `database/models/football.py`.

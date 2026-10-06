@@ -1,13 +1,13 @@
 """HTTP dependency resolution and request-scoped read sessions."""
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sport_events.database.connection import Database
-from sport_events.football_read.models import FootballMatchReader
+from sport_events.queries.champions_league_matches import ChampionsLeagueMatchQueries
 
 
 def get_database(request: Request) -> Database:
@@ -22,11 +22,7 @@ async def get_read_session(
         yield session
 
 
-def get_match_reader(
-    request: Request,
+def get_match_queries(
     session: Annotated[AsyncSession, Depends(get_read_session)],
-) -> FootballMatchReader:
-    factory: Callable[[AsyncSession], FootballMatchReader] = (
-        request.app.state.football_match_reader_factory
-    )
-    return factory(session)
+) -> ChampionsLeagueMatchQueries:
+    return ChampionsLeagueMatchQueries(session)

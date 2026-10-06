@@ -5,7 +5,6 @@ from fastapi import FastAPI
 
 from sport_events.api.router import api_router
 from sport_events.database.connection import Database
-from sport_events.queries.champions_league_matches import SqlAlchemyChampionsLeagueMatchReader
 from sport_events.settings import Settings, get_settings
 
 
@@ -27,7 +26,6 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.database = database_connection
-    application.state.football_match_reader_factory = SqlAlchemyChampionsLeagueMatchReader
     application.include_router(api_router, prefix="/api/v1")
     return application
 

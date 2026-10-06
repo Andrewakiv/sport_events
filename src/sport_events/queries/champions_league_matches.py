@@ -13,16 +13,10 @@ from sport_events.database.models.football import (
     FootballSeason,
     FootballTeam,
 )
-from sport_events.football_read.models import (
-    MatchListQuery,
-    MatchPage,
-    MatchView,
-    SeasonView,
-    TeamView,
-)
+from sport_events.football_models import Match, MatchFilters, MatchPage, Score, Season, Team
 
 
-class SqlAlchemyChampionsLeagueMatchReader:
+class ChampionsLeagueMatchQueries:
     """Execute match queries using a caller-owned session.
 
     The caller owns isolation and cleanup. Use a REPEATABLE READ transaction
@@ -32,7 +26,7 @@ class SqlAlchemyChampionsLeagueMatchReader:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def list_matches(self, query: MatchListQuery) -> MatchPage:
+    async def list_matches(self, query: MatchFilters) -> MatchPage:
         home_team = aliased(FootballTeam)
         away_team = aliased(FootballTeam)
         filters = _filters(query, home_team, away_team)
@@ -64,13 +58,13 @@ class SqlAlchemyChampionsLeagueMatchReader:
         total = await self._session.scalar(count_statement)
         rows = (await self._session.execute(statement)).all()
         return MatchPage(
-            items=tuple(_to_view(match, season, home, away) for match, season, home, away in rows),
+            items=[_to_match(match, season, home, away) for match, season, home, away in rows],
             total=total or 0,
             limit=query.limit,
             offset=query.offset,
         )
 
-    async def get_match(self, provider_id: int) -> MatchView | None:
+    async def get_match(self, provider_id: int) -> Match | None:
         home_team = aliased(FootballTeam)
         away_team = aliased(FootballTeam)
         statement = (
@@ -91,32 +85,32 @@ class SqlAlchemyChampionsLeagueMatchReader:
         if row is None:
             return None
         match, season, home, away = row
-        return _to_view(match, season, home, away)
+        return _to_match(match, season, home, away)
 
 
 def _filters(
-    query: MatchListQuery,
+    query: MatchFilters,
     home_team: type[FootballTeam],
     away_team: type[FootballTeam],
 ) -> list[ColumnElement[bool]]:
     filters: list[ColumnElement[bool]] = [FootballCompetition.code == "CL"]
-    if query.season_start_year is not None:
+    if query.season is not None:
         filters.append(
             and_(
-                FootballSeason.start_date >= date(query.season_start_year, 1, 1),
-                FootballSeason.start_date < date(query.season_start_year + 1, 1, 1),
+                FootballSeason.start_date >= date(query.season, 1, 1),
+                FootballSeason.start_date < date(query.season + 1, 1, 1),
             )
         )
-    if query.match_date is not None:
-        start = datetime.combine(query.match_date, time.min, tzinfo=UTC)
+    if query.date is not None:
+        start = datetime.combine(query.date, time.min, tzinfo=UTC)
         filters.append(FootballMatch.kickoff_at >= start)
-        if query.match_date != date.max:
+        if query.date != date.max:
             filters.append(FootballMatch.kickoff_at < start + timedelta(days=1))
-    if query.team_provider_id is not None:
+    if query.team_id is not None:
         filters.append(
             or_(
-                home_team.provider_id == query.team_provider_id,
-                away_team.provider_id == query.team_provider_id,
+                home_team.provider_id == query.team_id,
+                away_team.provider_id == query.team_id,
             )
         )
     if query.status is not None:
@@ -124,16 +118,16 @@ def _filters(
     return filters
 
 
-def _to_view(
+def _to_match(
     match: FootballMatch,
     season: FootballSeason,
     home_team: FootballTeam | None,
     away_team: FootballTeam | None,
-) -> MatchView:
-    return MatchView(
-        provider_id=match.provider_id,
-        season=SeasonView(
-            provider_id=season.provider_id,
+) -> Match:
+    return Match(
+        id=match.provider_id,
+        season=Season(
+            id=season.provider_id,
             start_date=season.start_date,
             end_date=season.end_date,
         ),
@@ -141,16 +135,18 @@ def _to_view(
         status=match.status,
         stage=match.stage,
         matchday=match.matchday,
-        group_name=match.group_name,
+        group=match.group_name,
         home_team=_to_team(home_team),
         away_team=_to_team(away_team),
-        home_score=match.home_score,
-        away_score=match.away_score,
-        score_duration=match.score_duration,
+        score=(
+            Score(home=match.home_score, away=match.away_score, duration=match.score_duration)
+            if match.home_score is not None and match.away_score is not None
+            else None
+        ),
     )
 
 
-def _to_team(team: FootballTeam | None) -> TeamView | None:
+def _to_team(team: FootballTeam | None) -> Team | None:
     if team is None:
         return None
-    return TeamView(provider_id=team.provider_id, name=team.name)
+    return Team(id=team.provider_id, name=team.name)

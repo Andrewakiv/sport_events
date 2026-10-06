@@ -3,12 +3,10 @@ from types import TracebackType
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.requests import Request
 
-from sport_events.api.dependencies import get_match_reader, get_read_session
+from sport_events.api.dependencies import get_match_queries, get_read_session
 from sport_events.database.connection import Database
-from sport_events.main import create_app
-from sport_events.queries.champions_league_matches import SqlAlchemyChampionsLeagueMatchReader
+from sport_events.queries.champions_league_matches import ChampionsLeagueMatchQueries
 
 
 class SessionContext:
@@ -61,15 +59,11 @@ async def test_read_session_dependency_cleans_up_on_success_and_failure(fail: bo
     assert context.closed
 
 
-async def test_application_factory_injects_the_provided_session() -> None:
-    app = create_app()
-    request = Request({"type": "http", "app": app})
+async def test_query_dependency_injects_the_provided_session() -> None:
     async with AsyncSession() as session:
-        reader = get_match_reader(request, session)
-        assert isinstance(reader, SqlAlchemyChampionsLeagueMatchReader)
-        assert reader._session is session
-        assert app.state.football_match_reader_factory is SqlAlchemyChampionsLeagueMatchReader
-    await app.state.database.close()
+        queries = get_match_queries(session)
+        assert isinstance(queries, ChampionsLeagueMatchQueries)
+        assert queries._session is session
 
 
 async def test_read_session_isolation_does_not_change_shared_engine() -> None:
