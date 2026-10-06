@@ -82,20 +82,24 @@ page is HTTP 200. Invalid query parameters return HTTP 422.
 Each match exposes its season dates, kickoff, stored status and stage, matchday,
 group, nullable teams, and nullable score (`home`, `away`, `duration`). Missing
 scores remain `null`, not fabricated zeroes. Reads never call the provider or
-trigger synchronization. Offset pages can change when an import updates data.
+trigger synchronization. Each list response reads its count and items from one
+database snapshot. Offset pages can still change between requests when an import
+updates data.
 
 ## Architecture
 
 - `api/routes`: FastAPI route handlers.
 - `api/schemas`: Pydantic request and response schemas.
+- `api/dependencies.py`: request-scoped read sessions and injected dependencies.
 - `database`: SQLAlchemy base and PostgreSQL connection management.
 - `football_data`: Champions League provider HTTP client and response types.
 - `football_sync`: provider- and database-independent synchronization records and operation.
 - `football_read`: plain-Python match views, query records, and reader protocol.
+- `queries`: SQLAlchemy readers using caller-owned sessions.
 - `settings.py`: environment-based application configuration.
 
 Football ORM models and relationships live in `database/models/football.py`.
-`database/football_read.py` implements the read queries. There is no scheduled
+`queries/champions_league_matches.py` implements the read queries. There is no scheduled
 import or Formula 1 implementation yet.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for implemented components,

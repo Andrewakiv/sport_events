@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from sport_events.api.dependencies import get_match_reader
 from sport_events.football_read.models import (
     MatchListQuery,
     MatchPage,
@@ -37,7 +38,8 @@ class StubMatchReader:
 
 
 async def client_for(reader: StubMatchReader) -> AsyncIterator[AsyncClient]:
-    app = create_app(database=StubDatabase(), football_match_reader=reader)  # type: ignore[arg-type]
+    app = create_app(database=StubDatabase())  # type: ignore[arg-type]
+    app.dependency_overrides[get_match_reader] = lambda: reader
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client

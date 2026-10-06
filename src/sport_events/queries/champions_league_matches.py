@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -22,9 +22,15 @@ from sport_events.football_read.models import (
 )
 
 
-class PostgresFootballMatchReader:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self._engine = engine
+class SqlAlchemyChampionsLeagueMatchReader:
+    """Execute match queries using a caller-owned session.
+
+    The caller owns isolation and cleanup. Use a REPEATABLE READ transaction
+    to keep the filtered count and page on the same snapshot.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
 
     async def list_matches(self, query: MatchListQuery) -> MatchPage:
         home_team = aliased(FootballTeam)
@@ -55,9 +61,8 @@ class PostgresFootballMatchReader:
             .outerjoin(away_team, FootballMatch.away_team_id == away_team.id)
             .where(*filters)
         )
-        async with AsyncSession(self._engine) as session:
-            total = await session.scalar(count_statement)
-            rows = (await session.execute(statement)).all()
+        total = await self._session.scalar(count_statement)
+        rows = (await self._session.execute(statement)).all()
         return MatchPage(
             items=tuple(_to_view(match, season, home, away) for match, season, home, away in rows),
             total=total or 0,
@@ -82,8 +87,7 @@ class PostgresFootballMatchReader:
                 FootballMatch.provider_id == provider_id,
             )
         )
-        async with AsyncSession(self._engine) as session:
-            row = (await session.execute(statement)).one_or_none()
+        row = (await self._session.execute(statement)).one_or_none()
         if row is None:
             return None
         match, season, home, away = row

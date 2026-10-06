@@ -1,16 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
+from sport_events.api.dependencies import get_database
 from sport_events.api.schemas.health import HealthResponse
 from sport_events.database.connection import Database
 
 router = APIRouter(prefix="/health", tags=["health"])
-
-
-def get_database(request: Request) -> Database:
-    database: Database = request.app.state.database
-    return database
 
 
 @router.get("/live", response_model=HealthResponse)

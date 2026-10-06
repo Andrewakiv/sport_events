@@ -5,14 +5,13 @@ from fastapi import FastAPI
 
 from sport_events.api.router import api_router
 from sport_events.database.connection import Database
-from sport_events.football_read.models import FootballMatchReader
+from sport_events.queries.champions_league_matches import SqlAlchemyChampionsLeagueMatchReader
 from sport_events.settings import Settings, get_settings
 
 
 def create_app(
     settings: Settings | None = None,
     database: Database | None = None,
-    football_match_reader: FootballMatchReader | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     database_connection = database or Database(resolved_settings.database_url)
@@ -28,7 +27,7 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.database = database_connection
-    application.state.football_match_reader = football_match_reader
+    application.state.football_match_reader_factory = SqlAlchemyChampionsLeagueMatchReader
     application.include_router(api_router, prefix="/api/v1")
     return application
 

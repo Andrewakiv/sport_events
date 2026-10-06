@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,9 @@ class Database:
             return False
         return True
 
-    @property
-    def engine(self) -> AsyncEngine:
-        return self._engine
+    def read_session(self) -> AsyncSession:
+        """Create a session whose reads share a snapshot until transaction end."""
+        return AsyncSession(self._engine.execution_options(isolation_level="REPEATABLE READ"))
 
     async def close(self) -> None:
         await self._engine.dispose()
