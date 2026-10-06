@@ -14,6 +14,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from sport_events.database.football_read import PostgresFootballMatchReader
 from sport_events.database.football_sync import (
     PostgresSeasonSnapshotStore,
     PostgresSeasonSyncLock,
@@ -24,6 +25,7 @@ from sport_events.database.models.football import (
     FootballSeason,
     FootballTeam,
 )
+from sport_events.football_read.models import MatchListQuery
 from sport_events.football_sync.models import (
     CompetitionRecord,
     MatchRecord,
@@ -265,3 +267,57 @@ async def test_lock_ends_transaction_rejects_overlap_and_releases() -> None:
             )
         assert held_locks == 0
         assert await first.execute(2026) == SyncResult(matches_processed=2)
+
+
+@pytest.mark.integration
+async def test_match_reader_filters_orders_paginates_and_loads_detail() -> None:
+    async with migrated_engine() as engine:
+        snapshot = season_snapshot()
+        await PostgresSeasonSnapshotStore(engine).store(snapshot)
+        reader = PostgresFootballMatchReader(engine)
+
+        second_page = await reader.list_matches(
+            MatchListQuery(season_start_year=2026, limit=1, offset=1)
+        )
+        assert second_page.total == 2
+        assert second_page.items[0].provider_id == 575341
+
+        filtered = await reader.list_matches(
+            MatchListQuery(
+                season_start_year=2026,
+                match_date=date(2026, 9, 8),
+                team_provider_id=851,
+                status="FINISHED",
+            )
+        )
+        assert filtered.total == 1
+        assert filtered.items[0].provider_id == 575323
+        assert filtered.items[0].stage == "LEAGUE_STAGE"
+        assert filtered.items[0].home_score == 2
+
+        assert (await reader.get_match(575323)) == filtered.items[0]
+        assert await reader.get_match(999999) is None
+
+        away_matches = await reader.list_matches(MatchListQuery(team_provider_id=58))
+        assert away_matches.items == filtered.items
+        scheduled = await reader.get_match(575341)
+        assert scheduled is not None
+        assert scheduled.home_team is None and scheduled.away_team is None
+        assert scheduled.home_score is None and scheduled.away_score is None
+        assert (await reader.list_matches(MatchListQuery(offset=100))).items == ()
+        assert (await reader.list_matches(MatchListQuery(season_start_year=2025))).total == 0
+        assert (await reader.list_matches(MatchListQuery(match_date=date.max))).total == 0
+
+        tied_match = replace(snapshot.matches[1], kickoff_at=snapshot.matches[0].kickoff_at)
+        await PostgresSeasonSnapshotStore(engine).store(replace(snapshot, matches=(tied_match,)))
+        page = await reader.list_matches(MatchListQuery())
+        assert [match.provider_id for match in page.items] == [575323, 575341]
+
+        other_competition = replace(
+            snapshot,
+            competition=CompetitionRecord(2021, "PL", "Premier League"),
+            matches=(replace(snapshot.matches[0], provider_id=999998),),
+        )
+        await PostgresSeasonSnapshotStore(engine).store(other_competition)
+        assert (await reader.list_matches(MatchListQuery())).total == 2
+        assert await reader.get_match(999998) is None

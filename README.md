@@ -7,8 +7,8 @@ Backend service for storing and exposing football and Formula 1 results.
 The repository currently provides PostgreSQL connectivity, health endpoints,
 Docker development, automated tests and CI, football persistence models and
 migrations, an isolated football-data.org client, and an idempotent Champions
-League season synchronization operation. Event query endpoints and Formula 1
-persistence are not implemented yet.
+League season synchronization operation, and a read-only Champions League match
+API. Formula 1 persistence is not implemented yet.
 
 ## Quick start
 
@@ -63,6 +63,27 @@ The command validates the complete provider response before its single database
 write transaction. Imports of the same season cannot overlap, repeated imports
 update existing records, and provider omissions do not delete stored matches.
 
+## Champions League read API
+
+- `GET /api/v1/football/champions-league/matches` lists imported matches.
+- `GET /api/v1/football/champions-league/matches/{match_id}` returns one imported
+  match, or HTTP 404 if it is not stored in the Champions League competition.
+
+Optional list filters are combined: `season` is the season's start year,
+`date` is a UTC calendar date (`YYYY-MM-DD`), `team_id` matches either home or
+away team, and `status` matches the exact stored provider status. Public match,
+season, and team IDs are provider IDs, not database primary keys.
+
+Results are ordered by kickoff ascending, then match ID ascending. Pagination
+uses `limit` (default 50, range 1–100) and `offset` (default 0, non-negative).
+The response includes `items`, filtered `total`, `limit`, and `offset`; an empty
+page is HTTP 200. Invalid query parameters return HTTP 422.
+
+Each match exposes its season dates, kickoff, stored status and stage, matchday,
+group, nullable teams, and nullable score (`home`, `away`, `duration`). Missing
+scores remain `null`, not fabricated zeroes. Reads never call the provider or
+trigger synchronization. Offset pages can change when an import updates data.
+
 ## Architecture
 
 - `api/routes`: FastAPI route handlers.
@@ -70,10 +91,12 @@ update existing records, and provider omissions do not delete stored matches.
 - `database`: SQLAlchemy base and PostgreSQL connection management.
 - `football_data`: Champions League provider HTTP client and response types.
 - `football_sync`: provider- and database-independent synchronization records and operation.
+- `football_read`: plain-Python match views, query records, and reader protocol.
 - `settings.py`: environment-based application configuration.
 
 Football ORM models and relationships live in `database/models/football.py`.
-There is no scheduled import, football read API, or Formula 1 implementation yet.
+`database/football_read.py` implements the read queries. There is no scheduled
+import or Formula 1 implementation yet.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for implemented components,
 [docs/product-scope.md](docs/product-scope.md) for agreed scope versus open

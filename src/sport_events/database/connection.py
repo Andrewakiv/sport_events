@@ -20,5 +20,9 @@ class Database:
             return False
         return True
 
+    @property
+    def engine(self) -> AsyncEngine:
+        return self._engine
+
     async def close(self) -> None:
         await self._engine.dispose()
