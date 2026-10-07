@@ -12,8 +12,11 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
+from sport_events.api.dependencies import get_database
+from sport_events.database import connection as connection_module
+from sport_events.database.connection import Database
 from sport_events.database.football_sync import (
     PostgresSeasonSnapshotStore,
     PostgresSeasonSyncLock,
@@ -24,6 +27,7 @@ from sport_events.database.models.football import (
     FootballSeason,
     FootballTeam,
 )
+from sport_events.football_models import MatchFilters
 from sport_events.football_sync.models import (
     CompetitionRecord,
     MatchRecord,
@@ -36,6 +40,8 @@ from sport_events.football_sync.operation import (
     ChampionsLeagueSyncAlreadyRunningError,
     SynchronizeChampionsLeagueSeason,
 )
+from sport_events.main import create_app
+from sport_events.queries.champions_league_matches import ChampionsLeagueMatchQueries
 
 
 @asynccontextmanager
@@ -265,3 +271,122 @@ async def test_lock_ends_transaction_rejects_overlap_and_releases() -> None:
             )
         assert held_locks == 0
         assert await first.execute(2026) == SyncResult(matches_processed=2)
+
+
+@pytest.mark.integration
+async def test_match_reader_filters_orders_paginates_and_loads_detail() -> None:
+    async with migrated_engine() as engine:
+        snapshot = season_snapshot()
+        await PostgresSeasonSnapshotStore(engine).store(snapshot)
+        async with AsyncSession(engine) as session:
+            reader = ChampionsLeagueMatchQueries(session)
+            second_page = await reader.list_matches(MatchFilters(season=2026, limit=1, offset=1))
+            assert second_page.total == 2
+            assert second_page.items[0].id == 575341
+
+            filtered = await reader.list_matches(
+                MatchFilters(
+                    season=2026,
+                    date=date(2026, 9, 8),
+                    team_id=851,
+                    status="FINISHED",
+                )
+            )
+            assert filtered.total == 1
+            assert filtered.items[0].id == 575323
+            assert filtered.items[0].stage == "LEAGUE_STAGE"
+            assert filtered.items[0].score is not None
+            assert filtered.items[0].score.home == 2
+
+            assert (await reader.get_match(575323)) == filtered.items[0]
+            assert await reader.get_match(999999) is None
+            away_matches = await reader.list_matches(MatchFilters(team_id=58))
+            assert away_matches.items == filtered.items
+            scheduled = await reader.get_match(575341)
+            assert scheduled is not None
+            assert scheduled.home_team is None and scheduled.away_team is None
+            assert scheduled.score is None
+            empty_page = await reader.list_matches(MatchFilters(offset=100))
+            assert empty_page.items == []
+            assert empty_page.total == 2
+            assert (await reader.list_matches(MatchFilters(season=2025))).total == 0
+            assert (await reader.list_matches(MatchFilters(date=date.max))).total == 0
+
+            tied_match = replace(snapshot.matches[1], kickoff_at=snapshot.matches[0].kickoff_at)
+            await PostgresSeasonSnapshotStore(engine).store(
+                replace(snapshot, matches=(tied_match,))
+            )
+            page = await reader.list_matches(MatchFilters())
+            assert [match.id for match in page.items] == [575323, 575341]
+
+            other_competition = replace(
+                snapshot,
+                competition=CompetitionRecord(2021, "PL", "Premier League"),
+                matches=(replace(snapshot.matches[0], provider_id=999998),),
+            )
+            await PostgresSeasonSnapshotStore(engine).store(other_competition)
+            # Drop cached ORM instances before observing imported corrections.
+            session.expire_all()
+            assert (await reader.list_matches(MatchFilters())).total == 2
+            assert await reader.get_match(999998) is None
+
+
+@pytest.mark.integration
+async def test_read_api_keeps_count_and_page_on_one_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    async with migrated_engine() as engine:
+        store = PostgresSeasonSnapshotStore(engine)
+        snapshot = season_snapshot()
+        await store.store(snapshot)
+        monkeypatch.setattr(connection_module, "create_async_engine", lambda *a, **kw: engine)
+        database = Database("postgresql+asyncpg://unused")
+        async with database.read_session() as session:
+            assert await session.scalar(text("SHOW transaction_isolation")) == "read committed"
+        original_execute = AsyncSession.execute
+        statements = 0
+        updated = False
+
+        async def execute_then_import(
+            session: AsyncSession, statement: object, **kwargs: object
+        ) -> object:
+            nonlocal updated, statements
+            statements += 1
+            result = await original_execute(session, statement, **kwargs)
+            if not updated:
+                updated = True
+                correction = replace(
+                    snapshot.matches[1], status="FINISHED", home_score=0, away_score=0
+                )
+                await store.store(replace(snapshot, matches=(correction,)))
+            return result
+
+        monkeypatch.setattr(AsyncSession, "execute", execute_then_import)
+        app = create_app(database=database)
+        app.dependency_overrides[get_database] = lambda: database
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/football/champions-league/matches", params={"status": "TIMED"}
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert updated
+            assert statements == 1
+            assert body["total"] == 1
+            assert len(body["items"]) == 1
+            assert body["items"][0]["status"] == "TIMED"
+            assert body["items"][0]["score"] is None
+            assert engine.pool.checkedout() == 0
+
+            next_response = await client.get(
+                "/api/v1/football/champions-league/matches", params={"status": "TIMED"}
+            )
+            assert next_response.json()["total"] == 0
+            assert next_response.json()["items"] == []
+            assert statements == 2
+            detail = await client.get("/api/v1/football/champions-league/matches/575341")
+            assert detail.json()["status"] == "FINISHED"
+            assert detail.json()["score"] == {"home": 0, "away": 0, "duration": "REGULAR"}
+            assert engine.pool.checkedout() == 0
