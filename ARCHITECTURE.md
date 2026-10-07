@@ -4,6 +4,11 @@ This document describes what is implemented, not a proposed package layout. The 
 
 ## Request and persistence flow
 
+- `frontend/` is a separately built React Router SPA. Its route loaders call the
+  versioned FastAPI endpoints through the same-origin `/api` path. Filter and
+  pagination state lives in the URL; generated OpenAPI declarations type the
+  network boundary. An explicit `demo=1` preview uses labelled local fixtures
+  and never silently replaces API responses.
 - `src/sport_events/main.py` creates the FastAPI application, configures the database, and closes the database engine on shutdown. `api/dependencies.py` injects the database session and match queries and owns request-scoped read-session cleanup; routers do not construct persistence adapters.
 - `src/sport_events/api/routes` contains HTTP handlers; `api/schemas` contains health response types. Health routes are `/api/v1/health/live` and `/api/v1/health/ready`. Liveness does not query PostgreSQL; readiness returns HTTP 503 when the database is unavailable. Champions League list and detail routes under `/api/v1/football/champions-league/matches` read imported records without contacting the provider.
 - `src/sport_events/database/connection.py` owns the async SQLAlchemy engine, connection check, and read-session creation. Sessions use the database's default isolation without overrides; their transaction ends when the request dependency closes the session. `database/models/football.py` defines the persisted football records and their ORM relationships.

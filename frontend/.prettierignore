@@ -1,0 +1,6 @@
+build/
+coverage/
+.react-router/
+app/shared/api/schema.d.ts
+openapi/sport-events.json
+package-lock.json

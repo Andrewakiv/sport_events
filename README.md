@@ -28,6 +28,8 @@ The migrations create the football competition, season, team, and match tables.
 
 Open:
 
+- Frontend: <http://localhost:3000/football/champions-league/matches>
+- Frontend demo: <http://localhost:3000/football/champions-league/matches?demo=1>
 - API docs: <http://localhost:8000/docs>
 - Liveness: <http://localhost:8000/api/v1/health/live>
 - Readiness: <http://localhost:8000/api/v1/health/ready>
@@ -86,6 +88,35 @@ trigger synchronization. Each list response reads its count and items from one
 database snapshot. Offset pages can still change between requests when an import
 updates data.
 
+## Frontend development
+
+The React and TypeScript frontend lives in `frontend/`. It uses the existing
+FastAPI OpenAPI document for generated request and response types. With the API
+running on port 8000:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open <http://localhost:5173/football/champions-league/matches>. Use `?demo=1`
+for an explicitly labelled preview that does not require imported database data.
+The demo mode never replaces API data silently.
+
+Frontend checks are:
+
+```bash
+npm run lint
+npm run format:check
+npm run typecheck
+npm run test:coverage
+npm run build
+```
+
+After changing FastAPI response models or routes, regenerate the committed API
+schema and TypeScript declarations with `npm run api:generate` from `frontend/`.
+
 ## Architecture
 
 - `api/routes`: FastAPI route handlers.
@@ -97,6 +128,7 @@ updates data.
 - `football_models.py`: shared Pydantic filters and response models, without duplicate read DTOs.
 - `queries`: match queries using caller-owned sessions, returning the shared response models.
 - `settings.py`: environment-based application configuration.
+- `frontend`: React Router SPA for browsing Champions League schedules and results.
 
 Football ORM models and relationships live in `database/models/football.py`.
 `queries/champions_league_matches.py` implements the read queries. There is no scheduled
