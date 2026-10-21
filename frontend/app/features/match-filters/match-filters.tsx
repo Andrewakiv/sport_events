@@ -40,8 +40,14 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
         </Link>
       </div>
 
-      <Form method="get" className="filter-form" onSubmit={applyFilters}>
+      <Form
+        key={JSON.stringify(filters)}
+        method="get"
+        className="filter-form"
+        onSubmit={applyFilters}
+      >
         {filters.demo && <input type="hidden" name="demo" value="1" />}
+        <input type="hidden" name="limit" value={filters.limit} />
 
         <label>
           <span>Сезон</span>

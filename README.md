@@ -92,7 +92,7 @@ updates data.
 
 The React and TypeScript frontend lives in `frontend/`. It uses the existing
 FastAPI OpenAPI document for generated request and response types. With the API
-running on port 8000:
+running on port 8000 and Node.js 24 (the CI/Docker version) installed:
 
 ```bash
 cd frontend
@@ -113,6 +113,9 @@ npm run typecheck
 npm run test:coverage
 npm run build
 ```
+
+`npm run lint` generates React Router route types before typed ESLint checks,
+so it also works on a fresh checkout without a prior dev-server or build run.
 
 After changing FastAPI response models or routes, regenerate the committed API
 schema and TypeScript declarations with `npm run api:generate` from `frontend/`.
