@@ -448,28 +448,6 @@ select {
   margin-bottom: 28px;
 }
 
-.source-badge {
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.source-demo {
-  border-color: rgba(255, 146, 100, 0.28);
-  color: var(--orange);
-  background: rgba(255, 146, 100, 0.06);
-}
-
-.source-api {
-  border-color: rgba(199, 255, 66, 0.2);
-  color: var(--lime);
-}
-
 .match-groups {
   display: grid;
   gap: 30px;
@@ -704,22 +682,6 @@ select {
   color: var(--orange);
 }
 
-.demo-exit {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 5;
-  padding: 10px 15px;
-  border: 1px solid rgba(255, 146, 100, 0.28);
-  border-radius: 999px;
-  color: var(--orange);
-  background: rgba(13, 24, 20, 0.96);
-  box-shadow: var(--shadow);
-  font-size: 10px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
 .detail-page {
   width: min(1060px, calc(100% - 40px));
   margin: 42px auto 90px;
@@ -856,12 +818,6 @@ select {
   font-size: 12px;
   font-weight: 750;
   text-overflow: ellipsis;
-}
-
-.demo-disclaimer {
-  color: var(--dim);
-  font-size: 10px;
-  text-align: center;
 }
 
 .site-footer {

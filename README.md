@@ -29,7 +29,6 @@ The migrations create the football competition, season, team, and match tables.
 Open:
 
 - Frontend: <http://localhost:3000/football/champions-league/matches>
-- Frontend demo: <http://localhost:3000/football/champions-league/matches?demo=1>
 - API docs: <http://localhost:8000/docs>
 - Liveness: <http://localhost:8000/api/v1/health/live>
 - Readiness: <http://localhost:8000/api/v1/health/ready>
@@ -60,6 +59,18 @@ start year:
 ```bash
 uv run --locked sync-champions-league 2026
 ```
+
+For the Docker Compose setup, set `FOOTBALL_DATA_API_TOKEN` in your local
+`.env` file or shell environment, then run the existing importer inside a
+one-off API container (using the same database as the running API):
+
+```bash
+docker compose run --rm -e FOOTBALL_DATA_API_TOKEN api sync-champions-league 2026
+```
+
+Refresh the frontend after a successful import. Repeat the command when you
+want to update stored fixtures/results; imports are manual, not scheduled.
+An empty database shows an empty match list. API errors show an error state.
 
 The command validates the complete provider response before its single database
 write transaction. Imports of the same season cannot overlap, repeated imports
@@ -100,9 +111,9 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173/football/champions-league/matches>. Use `?demo=1`
-for an explicitly labelled preview that does not require imported database data.
-The demo mode never replaces API data silently.
+Open <http://localhost:5173/football/champions-league/matches>. The dev server
+proxies `/api` to FastAPI on port 8000; the Docker frontend uses nginx for the
+same path. Every displayed match comes from the backend database.
 
 Frontend checks are:
 

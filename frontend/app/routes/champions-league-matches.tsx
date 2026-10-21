@@ -1,11 +1,11 @@
-import { Link, useSearchParams } from "react-router";
+import { Link } from "react-router";
 
 import type { Route } from "./+types/champions-league-matches";
 import { MatchCard } from "../entities/match/match-card";
 import { MatchFiltersPanel } from "../features/match-filters/match-filters";
 import { MatchPagination } from "../features/match-pagination/match-pagination";
 import { ApiError, getMatches } from "../shared/api/client";
-import type { Match, MatchResult } from "../shared/api/types";
+import type { Match, MatchPage } from "../shared/api/types";
 import { parseFilters } from "../shared/filters";
 import { formatMatchDate, utcDateKey } from "../shared/format";
 
@@ -20,7 +20,7 @@ export function meta() {
 }
 
 type LoaderData =
-  | { ok: true; result: MatchResult; filters: ReturnType<typeof parseFilters> }
+  | { ok: true; result: MatchPage; filters: ReturnType<typeof parseFilters> }
   | {
       ok: false;
       message: string;
@@ -50,19 +50,16 @@ export async function clientLoader({
 export default function ChampionsLeagueMatches({
   loaderData,
 }: Route.ComponentProps) {
-  const [, setSearchParams] = useSearchParams();
-
   return (
     <main>
       <section className="competition-hero">
         <div className="hero-copy">
-          <p className="eyebrow">UEFA · сезон 2026/27</p>
+          <p className="eyebrow">UEFA Champions League</p>
           <h1>
             Champions <span>League</span>
           </h1>
           <p className="hero-summary">
-            Один екран для майбутніх матчів і фінальних рахунків. Дані читаються
-            з локального Sport Events API.
+            Розклад майбутніх матчів і результати зіграних зустрічей.
           </p>
         </div>
         <div className="competition-emblem" aria-hidden="true">
@@ -80,13 +77,6 @@ export default function ChampionsLeagueMatches({
               <p className="eyebrow">Матч-центр</p>
               <h2 id="matches-heading">Розклад і результати</h2>
             </div>
-            {loaderData.ok && (
-              <span
-                className={`source-badge source-${loaderData.result.source}`}
-              >
-                {loaderData.result.source === "demo" ? "Demo data" : "Live API"}
-              </span>
-            )}
           </div>
 
           {!loaderData.ok ? (
@@ -94,44 +84,25 @@ export default function ChampionsLeagueMatches({
               message={loaderData.message}
               status={loaderData.status}
             />
-          ) : loaderData.result.page.items.length === 0 ? (
-            <EmptyState demo={loaderData.filters.demo} />
+          ) : loaderData.result.items.length === 0 ? (
+            <EmptyState />
           ) : (
             <>
-              <MatchGroups
-                matches={loaderData.result.page.items}
-                demo={loaderData.result.source === "demo"}
-              />
+              <MatchGroups matches={loaderData.result.items} />
               <MatchPagination
-                limit={loaderData.result.page.limit}
-                offset={loaderData.result.page.offset}
-                total={loaderData.result.page.total}
+                limit={loaderData.result.limit}
+                offset={loaderData.result.offset}
+                total={loaderData.result.total}
               />
             </>
           )}
         </section>
       </div>
-
-      {loaderData.filters.demo && (
-        <button
-          className="demo-exit"
-          type="button"
-          onClick={() =>
-            setSearchParams((current) => {
-              const next = new URLSearchParams(current);
-              next.delete("demo");
-              return next;
-            })
-          }
-        >
-          Вийти з demo
-        </button>
-      )}
     </main>
   );
 }
 
-function MatchGroups({ matches, demo }: { matches: Match[]; demo: boolean }) {
+function MatchGroups({ matches }: { matches: Match[] }) {
   const groups = matches.reduce<Map<string, Match[]>>((result, match) => {
     const date = utcDateKey(match);
     const existing = result.get(date) ?? [];
@@ -150,7 +121,7 @@ function MatchGroups({ matches, demo }: { matches: Match[]; demo: boolean }) {
           </div>
           <div className="match-list">
             {dayMatches.map((match) => (
-              <MatchCard key={match.id} match={match} demo={demo} />
+              <MatchCard key={match.id} match={match} />
             ))}
           </div>
         </section>
@@ -187,17 +158,12 @@ function ApiUnavailable({
       </span>
       <p className="eyebrow">API {status ? `· ${status}` : "недоступний"}</p>
       <h3>Не вдалося завантажити матчі</h3>
-      <p>
-        {message} Запустіть FastAPI або відкрийте підготовлений режим перегляду.
-      </p>
-      <Link className="button button-primary" to="?demo=1">
-        Переглянути demo
-      </Link>
+      <p>{message} Спробуйте оновити сторінку пізніше.</p>
     </div>
   );
 }
 
-function EmptyState({ demo }: { demo: boolean }) {
+function EmptyState() {
   return (
     <div className="state-card">
       <span className="state-icon" aria-hidden="true">
@@ -206,7 +172,7 @@ function EmptyState({ demo }: { demo: boolean }) {
       <p className="eyebrow">Порожня вибірка</p>
       <h3>Матчів за цими умовами немає</h3>
       <p>Скиньте фільтри або оберіть інший сезон, дату чи статус.</p>
-      <Link className="button button-secondary" to={demo ? "?demo=1" : "?"}>
+      <Link className="button button-secondary" to="?">
         Скинути фільтри
       </Link>
     </div>

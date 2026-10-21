@@ -6,7 +6,7 @@ describe("parseFilters", () => {
   it("reads valid API filters from the URL", () => {
     const filters = parseFilters(
       new URL(
-        "https://example.test/matches?season=2026&date=2026-10-07&team_id=64&status=FINISHED&limit=10&offset=20&demo=1",
+        "https://example.test/matches?season=2026&date=2026-10-07&team_id=64&status=FINISHED&limit=10&offset=20",
       ),
     );
 
@@ -17,7 +17,6 @@ describe("parseFilters", () => {
       status: "FINISHED",
       limit: 10,
       offset: 20,
-      demo: true,
     });
   });
 
@@ -35,16 +34,15 @@ describe("parseFilters", () => {
       status: undefined,
       limit: 25,
       offset: 0,
-      demo: false,
     });
   });
 });
 
 describe("pageSearchParams", () => {
   it("preserves filters and sets the requested offset", () => {
-    const params = new URLSearchParams("season=2026&demo=1");
+    const params = new URLSearchParams("season=2026&status=FINISHED");
     expect(pageSearchParams(params, 25).toString()).toBe(
-      "season=2026&demo=1&offset=25",
+      "season=2026&status=FINISHED&offset=25",
     );
     expect(params.has("offset")).toBe(false);
   });

@@ -10,15 +10,13 @@ import {
 
 interface MatchCardProps {
   match: Match;
-  demo: boolean;
 }
 
-export function MatchCard({ match, demo }: MatchCardProps) {
+export function MatchCard({ match }: MatchCardProps) {
   const location = useLocation();
   const detailSearch = new URLSearchParams({
     returnTo: `${location.pathname}${location.search}`,
   });
-  if (demo) detailSearch.set("demo", "1");
 
   const finished = match.status === "FINISHED";
   const live = match.status === "IN_PLAY" || match.status === "PAUSED";

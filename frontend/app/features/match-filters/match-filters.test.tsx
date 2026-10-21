@@ -17,7 +17,7 @@ describe("MatchFiltersPanel", () => {
     const user = userEvent.setup();
     const router = createMemoryRouter(
       [{ path: "/", Component: FiltersRoute }],
-      { initialEntries: ["/?demo=1&limit=2&offset=4"] },
+      { initialEntries: ["/?limit=2&offset=4"] },
     );
     render(<RouterProvider router={router} />);
 
@@ -30,7 +30,6 @@ describe("MatchFiltersPanel", () => {
     await waitFor(() => {
       const params = new URLSearchParams(router.state.location.search);
       expect(Object.fromEntries(params)).toEqual({
-        demo: "1",
         limit: "2",
         status: "FINISHED",
       });
@@ -40,8 +39,8 @@ describe("MatchFiltersPanel", () => {
   it("updates form values after reset and back navigation", async () => {
     const user = userEvent.setup();
     const router = createMemoryRouter(
-      [{ path: "/", Component: FiltersRoute }],
-      { initialEntries: ["/?demo=1&season=2026&status=FINISHED"] },
+      [{ path: "*", Component: FiltersRoute }],
+      { initialEntries: ["/?season=2026&status=FINISHED"] },
     );
     render(<RouterProvider router={router} />);
 

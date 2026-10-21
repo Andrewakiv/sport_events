@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import type { Match } from "../../shared/api/types";
@@ -22,9 +22,14 @@ describe("MatchCard", () => {
   it("does not fabricate a score or missing team", () => {
     render(
       <MemoryRouter
-        initialEntries={["/football/champions-league/matches?demo=1"]}
+        initialEntries={["/football/champions-league/matches?season=2026"]}
       >
-        <MatchCard demo match={scheduledMatch} />
+        <Routes>
+          <Route
+            path="/football/champions-league/matches"
+            element={<MatchCard match={scheduledMatch} />}
+          />
+        </Routes>
       </MemoryRouter>,
     );
 
@@ -33,7 +38,7 @@ describe("MatchCard", () => {
     expect(screen.getAllByText("—")).toHaveLength(2);
     expect(screen.getByRole("link")).toHaveAttribute(
       "href",
-      expect.stringContaining("demo=1"),
+      "/football/champions-league/matches/42?returnTo=%2Ffootball%2Fchampions-league%2Fmatches%3Fseason%3D2026",
     );
   });
 });

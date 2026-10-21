@@ -10,10 +10,4 @@ export interface MatchFilters {
   status?: string;
   limit: number;
   offset: number;
-  demo: boolean;
-}
-
-export interface MatchResult {
-  page: MatchPage;
-  source: "api" | "demo";
 }

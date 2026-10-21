@@ -11,7 +11,7 @@ import {
 } from "../shared/format";
 
 type LoaderData =
-  | { ok: true; match: Match | null; demo: boolean; returnTo: string }
+  | { ok: true; match: Match | null; returnTo: string }
   | { ok: false; message: string; status?: number; returnTo: string };
 
 export async function clientLoader({
@@ -20,15 +20,14 @@ export async function clientLoader({
 }: Route.ClientLoaderArgs): Promise<LoaderData> {
   const url = new URL(request.url);
   const matchId = Number(params.matchId);
-  const demo = url.searchParams.get("demo") === "1";
   const returnTo = safeReturnTo(url.searchParams.get("returnTo"));
 
   if (!Number.isInteger(matchId) || matchId <= 0) {
-    return { ok: true, match: null, demo, returnTo };
+    return { ok: true, match: null, returnTo };
   }
 
   try {
-    return { ok: true, match: await getMatch(matchId, demo), demo, returnTo };
+    return { ok: true, match: await getMatch(matchId), returnTo };
   } catch (error) {
     if (error instanceof ApiError) {
       return {
@@ -134,10 +133,6 @@ export default function ChampionsLeagueMatch({
           <Fact label="Тривалість" value={match.score?.duration ?? "—"} />
         </dl>
       </section>
-
-      {loaderData.demo && (
-        <p className="demo-disclaimer">Демонстраційні дані для UI preview.</p>
-      )}
     </main>
   );
 }

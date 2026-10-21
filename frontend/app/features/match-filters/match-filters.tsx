@@ -32,10 +32,7 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
           <p className="eyebrow">Точний пошук</p>
           <h2 id="filters-heading">Фільтри</h2>
         </div>
-        <Link
-          className="reset-link"
-          to={filters.demo ? "?demo=1" : "/football/champions-league/matches"}
-        >
+        <Link className="reset-link" to="/football/champions-league/matches">
           Скинути
         </Link>
       </div>
@@ -46,7 +43,6 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
         className="filter-form"
         onSubmit={applyFilters}
       >
-        {filters.demo && <input type="hidden" name="demo" value="1" />}
         <input type="hidden" name="limit" value={filters.limit} />
 
         <label>

@@ -13,7 +13,6 @@ export function parseFilters(url: URL): MatchFilters {
       optionalInteger(url.searchParams.get("limit"), 1, MAX_LIMIT) ??
       DEFAULT_LIMIT,
     offset: optionalInteger(url.searchParams.get("offset"), 0) ?? 0,
-    demo: url.searchParams.get("demo") === "1",
   };
 }
 
