@@ -7,7 +7,7 @@ import { MatchPagination } from "../features/match-pagination/match-pagination";
 import { ApiError, getMatches } from "../shared/api/client";
 import type { Match, MatchPage } from "../shared/api/types";
 import { parseFilters } from "../shared/filters";
-import { formatMatchDate, utcDateKey } from "../shared/format";
+import { formatMatchDate, localDateKey } from "../shared/format";
 
 export function meta() {
   return [
@@ -104,7 +104,7 @@ export default function ChampionsLeagueMatches({
 
 function MatchGroups({ matches }: { matches: Match[] }) {
   const groups = matches.reduce<Map<string, Match[]>>((result, match) => {
-    const date = utcDateKey(match);
+    const date = localDateKey(match.kickoff_at);
     const existing = result.get(date) ?? [];
     existing.push(match);
     result.set(date, existing);
@@ -113,19 +113,23 @@ function MatchGroups({ matches }: { matches: Match[] }) {
 
   return (
     <div className="match-groups">
-      {[...groups.entries()].map(([date, dayMatches]) => (
-        <section className="match-day" key={date}>
-          <div className="day-heading">
-            <h3>{formatMatchDate(`${date}T12:00:00Z`)}</h3>
-            <span>{matchCount(dayMatches.length)}</span>
-          </div>
-          <div className="match-list">
-            {dayMatches.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {[...groups.entries()].map(([date, dayMatches]) => {
+        const firstMatch = dayMatches[0];
+        if (!firstMatch) return null;
+        return (
+          <section className="match-day" key={date}>
+            <div className="day-heading">
+              <h3>{formatMatchDate(firstMatch.kickoff_at)}</h3>
+              <span>{matchCount(dayMatches.length)}</span>
+            </div>
+            <div className="match-list">
+              {dayMatches.map((match) => (
+                <MatchCard key={match.id} match={match} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
