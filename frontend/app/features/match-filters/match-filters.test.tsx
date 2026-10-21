@@ -17,9 +17,11 @@ describe("MatchFiltersPanel", () => {
     const user = userEvent.setup();
     const router = createMemoryRouter(
       [{ path: "/", Component: FiltersRoute }],
-      { initialEntries: ["/?limit=2&offset=4"] },
+      { initialEntries: ["/?limit=2&offset=4&team_id=64"] },
     );
     render(<RouterProvider router={router} />);
+
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
 
     await user.selectOptions(
       screen.getByRole("combobox", { name: "Статус" }),

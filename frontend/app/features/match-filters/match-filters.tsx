@@ -62,17 +62,6 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
         </label>
 
         <label>
-          <span>ID команди</span>
-          <input
-            name="team_id"
-            type="number"
-            min="1"
-            placeholder="Наприклад, 64"
-            defaultValue={filters.teamId ?? ""}
-          />
-        </label>
-
-        <label>
           <span>Статус</span>
           <select name="status" defaultValue={filters.status ?? ""}>
             {STATUSES.map(([value, label]) => (
