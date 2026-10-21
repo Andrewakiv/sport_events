@@ -11,7 +11,7 @@ import "./styles/global.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uk">
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -34,7 +34,7 @@ export function HydrateFallback() {
       <div className="brand-mark" aria-hidden="true">
         SE
       </div>
-      <p>Готуємо матч-центр…</p>
+      <p>Loading match centre…</p>
     </main>
   );
 }
@@ -53,11 +53,11 @@ export default function App() {
           </span>
         </NavLink>
 
-        <nav className="primary-nav" aria-label="Основна навігація">
+        <nav className="primary-nav" aria-label="Main navigation">
           <NavLink to="/football/champions-league/matches">
-            Ліга чемпіонів
+            Champions League
           </NavLink>
-          <span aria-disabled="true" title="Незабаром">
+          <span aria-disabled="true" title="Coming soon">
             Formula 1 <em>soon</em>
           </span>
         </nav>
@@ -71,8 +71,8 @@ export default function App() {
       <Outlet />
 
       <footer className="site-footer">
-        <p>Sport Events · Розклад і результати без зайвого шуму.</p>
-        <p>Час матчу показано у вашому часовому поясі.</p>
+        <p>Sport Events · Fixtures and results, without the noise.</p>
+        <p>Kick-off times are shown in your local time zone.</p>
       </footer>
     </div>
   );
@@ -81,14 +81,14 @@ export default function App() {
 export function ErrorBoundary() {
   return (
     <main className="fatal-error">
-      <p className="eyebrow">Помилка застосунку</p>
-      <h1>Цю сторінку не вдалося відкрити.</h1>
-      <p>Оновіть сторінку або поверніться до матч-центру.</p>
+      <p className="eyebrow">Application error</p>
+      <h1>This page could not be loaded.</h1>
+      <p>Refresh the page or return to the match centre.</p>
       <a
         className="button button-primary"
         href="/football/champions-league/matches"
       >
-        До матчів
+        Back to matches
       </a>
     </main>
   );

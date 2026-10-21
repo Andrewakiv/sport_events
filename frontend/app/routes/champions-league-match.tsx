@@ -37,13 +37,17 @@ export async function clientLoader({
         returnTo,
       };
     }
-    return { ok: false, message: "API зараз недоступний.", returnTo };
+    return {
+      ok: false,
+      message: "The API is currently unavailable.",
+      returnTo,
+    };
   }
 }
 
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.ok || !data.match)
-    return [{ title: "Матч не знайдено — Sport Events" }];
+    return [{ title: "Match not found — Sport Events" }];
   const home = data.match.home_team?.name ?? "TBD";
   const away = data.match.away_team?.name ?? "TBD";
   return [{ title: `${home} — ${away} · Sport Events` }];
@@ -56,11 +60,11 @@ export default function ChampionsLeagueMatch({
     return (
       <main className="detail-page">
         <Link className="back-link" to={loaderData.returnTo}>
-          ← До матчів
+          ← Back to matches
         </Link>
         <div className="state-card error-state" role="alert">
           <p className="eyebrow">API {loaderData.status ?? "offline"}</p>
-          <h1>Не вдалося відкрити матч</h1>
+          <h1>Unable to load match</h1>
           <p>{loaderData.message}</p>
         </div>
       </main>
@@ -71,12 +75,12 @@ export default function ChampionsLeagueMatch({
     return (
       <main className="detail-page">
         <Link className="back-link" to={loaderData.returnTo}>
-          ← До матчів
+          ← Back to matches
         </Link>
         <div className="state-card">
           <p className="eyebrow">404</p>
-          <h1>Матч не знайдено</h1>
-          <p>Перевірте адресу або поверніться до загального розкладу.</p>
+          <h1>Match not found</h1>
+          <p>Check the address or return to the fixture list.</p>
         </div>
       </main>
     );
@@ -88,7 +92,7 @@ export default function ChampionsLeagueMatch({
   return (
     <main className="detail-page">
       <Link className="back-link" to={loaderData.returnTo}>
-        ← До матчів
+        ← Back to matches
       </Link>
 
       <section className="scoreboard">
@@ -119,18 +123,18 @@ export default function ChampionsLeagueMatch({
 
       <section className="detail-facts" aria-labelledby="details-heading">
         <div>
-          <p className="eyebrow">Матч #{match.id}</p>
-          <h1 id="details-heading">Деталі події</h1>
+          <p className="eyebrow">Match #{match.id}</p>
+          <h1 id="details-heading">Match details</h1>
         </div>
         <dl>
           <Fact
-            label="Сезон"
+            label="Season"
             value={`${match.season.start_date.slice(0, 4)} / ${match.season.end_date.slice(0, 4)}`}
           />
-          <Fact label="Стадія" value={stageLabel(match.stage)} />
-          <Fact label="Тур" value={match.matchday?.toString() ?? "—"} />
-          <Fact label="Група" value={match.group ?? "—"} />
-          <Fact label="Тривалість" value={match.score?.duration ?? "—"} />
+          <Fact label="Stage" value={stageLabel(match.stage)} />
+          <Fact label="Matchday" value={match.matchday?.toString() ?? "—"} />
+          <Fact label="Group" value={match.group ?? "—"} />
+          <Fact label="Duration" value={match.score?.duration ?? "—"} />
         </dl>
       </section>
     </main>
@@ -143,7 +147,7 @@ function DetailTeam({ name }: { name: string | undefined }) {
       <span className="detail-team-badge" aria-hidden="true">
         {teamInitials(name)}
       </span>
-      <h2>{name ?? "Ще не визначено"}</h2>
+      <h2>{name ?? "To be confirmed"}</h2>
     </div>
   );
 }

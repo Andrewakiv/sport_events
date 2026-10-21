@@ -1,17 +1,17 @@
 import type { Match } from "./api/types";
 
-const dateFormatter = new Intl.DateTimeFormat("uk-UA", {
+const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
   day: "numeric",
   month: "long",
 });
 
-const timeFormatter = new Intl.DateTimeFormat("uk-UA", {
+const timeFormatter = new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
   minute: "2-digit",
 });
 
-const longDateFormatter = new Intl.DateTimeFormat("uk-UA", {
+const longDateFormatter = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
   day: "numeric",
   month: "long",
@@ -51,31 +51,31 @@ export function teamInitials(name: string | undefined): string {
 
 export function stageLabel(stage: string): string {
   const labels: Record<string, string> = {
-    LEAGUE_STAGE: "Етап ліги",
-    GROUP_STAGE: "Груповий етап",
-    LAST_16: "1/8 фіналу",
-    QUARTER_FINALS: "Чвертьфінал",
-    SEMI_FINALS: "Півфінал",
-    FINAL: "Фінал",
+    LEAGUE_STAGE: "League stage",
+    GROUP_STAGE: "Group stage",
+    LAST_16: "Round of 16",
+    QUARTER_FINALS: "Quarter-finals",
+    SEMI_FINALS: "Semi-finals",
+    FINAL: "Final",
   };
-  return labels[stage] ?? stage.replaceAll("_", " ").toLocaleLowerCase("uk-UA");
+  return labels[stage] ?? stage.replaceAll("_", " ").toLocaleLowerCase("en-GB");
 }
 
 export function statusLabel(status: string): string {
   const labels: Record<string, string> = {
-    FINISHED: "Завершено",
-    IN_PLAY: "У грі",
-    PAUSED: "Перерва",
-    TIMED: "Заплановано",
-    SCHEDULED: "Заплановано",
-    POSTPONED: "Перенесено",
-    CANCELLED: "Скасовано",
+    FINISHED: "Finished",
+    IN_PLAY: "In play",
+    PAUSED: "Paused",
+    TIMED: "Kick-off confirmed",
+    SCHEDULED: "Scheduled",
+    POSTPONED: "Postponed",
+    CANCELLED: "Cancelled",
   };
   return (
-    labels[status] ?? status.replaceAll("_", " ").toLocaleLowerCase("uk-UA")
+    labels[status] ?? status.replaceAll("_", " ").toLocaleLowerCase("en-GB")
   );
 }
 
 function sentenceCase(value: string): string {
-  return value.charAt(0).toLocaleUpperCase("uk-UA") + value.slice(1);
+  return value.charAt(0).toLocaleUpperCase("en-GB") + value.slice(1);
 }

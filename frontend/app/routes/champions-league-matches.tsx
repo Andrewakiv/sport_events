@@ -11,10 +11,10 @@ import { formatMatchDate, utcDateKey } from "../shared/format";
 
 export function meta() {
   return [
-    { title: "Ліга чемпіонів — Sport Events" },
+    { title: "Champions League — Sport Events" },
     {
       name: "description",
-      content: "Розклад і результати матчів UEFA Champions League.",
+      content: "UEFA Champions League fixtures and results.",
     },
   ];
 }
@@ -43,7 +43,7 @@ export async function clientLoader({
         filters,
       };
     }
-    return { ok: false, message: "API зараз недоступний.", filters };
+    return { ok: false, message: "The API is currently unavailable.", filters };
   }
 }
 
@@ -59,7 +59,7 @@ export default function ChampionsLeagueMatches({
             Champions <span>League</span>
           </h1>
           <p className="hero-summary">
-            Розклад майбутніх матчів і результати зіграних зустрічей.
+            Upcoming fixtures and results from completed matches.
           </p>
         </div>
         <div className="competition-emblem" aria-hidden="true">
@@ -74,8 +74,8 @@ export default function ChampionsLeagueMatches({
         <section className="matches-panel" aria-labelledby="matches-heading">
           <div className="matches-toolbar">
             <div>
-              <p className="eyebrow">Матч-центр</p>
-              <h2 id="matches-heading">Розклад і результати</h2>
+              <p className="eyebrow">Match centre</p>
+              <h2 id="matches-heading">Fixtures and results</h2>
             </div>
           </div>
 
@@ -131,17 +131,7 @@ function MatchGroups({ matches }: { matches: Match[] }) {
 }
 
 function matchCount(count: number): string {
-  const remainder100 = count % 100;
-  const remainder10 = count % 10;
-  const noun =
-    remainder10 === 1 && remainder100 !== 11
-      ? "матч"
-      : remainder10 >= 2 &&
-          remainder10 <= 4 &&
-          (remainder100 < 12 || remainder100 > 14)
-        ? "матчі"
-        : "матчів";
-  return `${count} ${noun}`;
+  return `${count} ${count === 1 ? "match" : "matches"}`;
 }
 
 function ApiUnavailable({
@@ -156,9 +146,9 @@ function ApiUnavailable({
       <span className="state-icon" aria-hidden="true">
         !
       </span>
-      <p className="eyebrow">API {status ? `· ${status}` : "недоступний"}</p>
-      <h3>Не вдалося завантажити матчі</h3>
-      <p>{message} Спробуйте оновити сторінку пізніше.</p>
+      <p className="eyebrow">API {status ? `· ${status}` : "unavailable"}</p>
+      <h3>Unable to load matches</h3>
+      <p>{message} Please try refreshing the page later.</p>
     </div>
   );
 }
@@ -169,11 +159,11 @@ function EmptyState() {
       <span className="state-icon" aria-hidden="true">
         0
       </span>
-      <p className="eyebrow">Порожня вибірка</p>
-      <h3>Матчів за цими умовами немає</h3>
-      <p>Скиньте фільтри або оберіть інший сезон, дату чи статус.</p>
+      <p className="eyebrow">No results</p>
+      <h3>No matches found</h3>
+      <p>Reset the filters or choose a different season, date or status.</p>
       <Link className="button button-secondary" to="?">
-        Скинути фільтри
+        Reset filters
       </Link>
     </div>
   );

@@ -25,7 +25,7 @@ export function MatchCard({ match }: MatchCardProps) {
     <Link
       className="match-card"
       to={`${match.id}?${detailSearch.toString()}`}
-      aria-label={`${match.home_team?.name ?? "Команда ще не визначена"} — ${match.away_team?.name ?? "Команда ще не визначена"}`}
+      aria-label={`${match.home_team?.name ?? "Team to be confirmed"} — ${match.away_team?.name ?? "Team to be confirmed"}`}
     >
       <div className="match-time">
         <strong>{formatMatchTime(match.kickoff_at)}</strong>
@@ -48,7 +48,7 @@ export function MatchCard({ match }: MatchCardProps) {
 
       <div className="match-meta">
         <span>{stageLabel(match.stage)}</span>
-        {match.matchday !== null && <span>Тур {match.matchday}</span>}
+        {match.matchday !== null && <span>Matchday {match.matchday}</span>}
         <span className="arrow" aria-hidden="true">
           ↗
         </span>
@@ -70,7 +70,7 @@ function TeamRow({
         {teamInitials(name)}
       </span>
       <strong className={!name ? "team-tbd" : undefined}>
-        {name ?? "Ще не визначено"}
+        {name ?? "To be confirmed"}
       </strong>
       <b>{score ?? "—"}</b>
     </div>

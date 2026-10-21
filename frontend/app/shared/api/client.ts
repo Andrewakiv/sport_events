@@ -55,5 +55,5 @@ function apiMessage(error: unknown): string {
     const detail = error.detail;
     if (typeof detail === "string") return detail;
   }
-  return "Не вдалося отримати дані з API.";
+  return "Unable to retrieve data from the API.";
 }

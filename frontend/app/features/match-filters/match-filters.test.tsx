@@ -24,10 +24,10 @@ describe("MatchFiltersPanel", () => {
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Статус" }),
+      screen.getByRole("combobox", { name: "Status" }),
       "FINISHED",
     );
-    await user.click(screen.getByRole("button", { name: "Застосувати" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       const params = new URLSearchParams(router.state.location.search);
@@ -46,17 +46,19 @@ describe("MatchFiltersPanel", () => {
     );
     render(<RouterProvider router={router} />);
 
-    await user.click(screen.getByRole("link", { name: "Скинути" }));
+    await user.click(screen.getByRole("link", { name: "Reset" }));
     await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: "Сезон" })).toHaveValue("");
-      expect(screen.getByRole("combobox", { name: "Статус" })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: "Season" })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("");
     });
 
     await act(async () => {
       await router.navigate(-1);
     });
-    expect(screen.getByRole("combobox", { name: "Сезон" })).toHaveValue("2026");
-    expect(screen.getByRole("combobox", { name: "Статус" })).toHaveValue(
+    expect(screen.getByRole("combobox", { name: "Season" })).toHaveValue(
+      "2026",
+    );
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue(
       "FINISHED",
     );
   });

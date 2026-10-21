@@ -4,12 +4,12 @@ import { Form, Link, useSubmit } from "react-router";
 import type { MatchFilters } from "../../shared/api/types";
 
 const STATUSES = [
-  ["", "Усі статуси"],
-  ["SCHEDULED", "Заплановано"],
-  ["TIMED", "Час визначено"],
-  ["IN_PLAY", "У грі"],
-  ["FINISHED", "Завершено"],
-  ["POSTPONED", "Перенесено"],
+  ["", "All statuses"],
+  ["SCHEDULED", "Scheduled"],
+  ["TIMED", "Kick-off confirmed"],
+  ["IN_PLAY", "In play"],
+  ["FINISHED", "Finished"],
+  ["POSTPONED", "Postponed"],
 ] as const;
 
 export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
@@ -29,11 +29,11 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
     <aside className="filter-panel" aria-labelledby="filters-heading">
       <div className="filter-heading">
         <div>
-          <p className="eyebrow">Точний пошук</p>
-          <h2 id="filters-heading">Фільтри</h2>
+          <p className="eyebrow">Refine your search</p>
+          <h2 id="filters-heading">Filters</h2>
         </div>
         <Link className="reset-link" to="/football/champions-league/matches">
-          Скинути
+          Reset
         </Link>
       </div>
 
@@ -46,9 +46,9 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
         <input type="hidden" name="limit" value={filters.limit} />
 
         <label>
-          <span>Сезон</span>
+          <span>Season</span>
           <select name="season" defaultValue={filters.season ?? ""}>
-            <option value="">Усі сезони</option>
+            <option value="">All seasons</option>
             <option value="2026">2026 / 27</option>
             <option value="2025">2025 / 26</option>
             <option value="2024">2024 / 25</option>
@@ -57,12 +57,12 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
         </label>
 
         <label>
-          <span>Дата матчу · UTC</span>
+          <span>Match date · UTC</span>
           <input name="date" type="date" defaultValue={filters.date ?? ""} />
         </label>
 
         <label>
-          <span>Статус</span>
+          <span>Status</span>
           <select name="status" defaultValue={filters.status ?? ""}>
             {STATUSES.map(([value, label]) => (
               <option key={value} value={value}>
@@ -73,14 +73,14 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
         </label>
 
         <button className="button button-primary" type="submit">
-          Застосувати
+          Apply
         </button>
       </Form>
 
       <div className="filter-note">
         <span aria-hidden="true">i</span>
         <p>
-          Фільтри комбінуються. Дата запиту — UTC, а час у картках — локальний.
+          Filters work together. Match dates use UTC; kick-off times are local.
         </p>
       </div>
     </aside>

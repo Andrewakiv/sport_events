@@ -34,7 +34,7 @@ describe("MatchCard", () => {
     );
 
     expect(screen.getByText("Liverpool FC")).toBeInTheDocument();
-    expect(screen.getByText("Ще не визначено")).toBeInTheDocument();
+    expect(screen.getByText("To be confirmed")).toBeInTheDocument();
     expect(screen.getAllByText("—")).toHaveLength(2);
     expect(screen.getByRole("link")).toHaveAttribute(
       "href",

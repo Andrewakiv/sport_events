@@ -16,19 +16,19 @@ export function MatchPagination({ limit, offset, total }: PaginationProps) {
   const nextOffset = offset + limit;
 
   return (
-    <nav className="pagination" aria-label="Пагінація матчів">
+    <nav className="pagination" aria-label="Match pagination">
       <p>
         <strong>
           {from}–{to}
         </strong>{" "}
-        із {total}
+        of {total}
       </p>
       <div>
         {offset > 0 ? (
           <Link
             className="page-button"
             to={`?${pageSearchParams(searchParams, previousOffset).toString()}`}
-            aria-label="Попередня сторінка"
+            aria-label="Previous page"
           >
             ←
           </Link>
@@ -41,7 +41,7 @@ export function MatchPagination({ limit, offset, total }: PaginationProps) {
           <Link
             className="page-button"
             to={`?${pageSearchParams(searchParams, nextOffset).toString()}`}
-            aria-label="Наступна сторінка"
+            aria-label="Next page"
           >
             →
           </Link>
