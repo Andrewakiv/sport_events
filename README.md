@@ -28,6 +28,7 @@ The migrations create the football competition, season, team, and match tables.
 
 Open:
 
+- Frontend: <http://localhost:3000/football/champions-league/matches>
 - API docs: <http://localhost:8000/docs>
 - Liveness: <http://localhost:8000/api/v1/health/live>
 - Readiness: <http://localhost:8000/api/v1/health/ready>
@@ -59,6 +60,18 @@ start year:
 uv run --locked sync-champions-league 2026
 ```
 
+For the Docker Compose setup, set `FOOTBALL_DATA_API_TOKEN` in your local
+`.env` file or shell environment, then run the existing importer inside a
+one-off API container (using the same database as the running API):
+
+```bash
+docker compose run --rm -e FOOTBALL_DATA_API_TOKEN api sync-champions-league 2026
+```
+
+Refresh the frontend after a successful import. Repeat the command when you
+want to update stored fixtures/results; imports are manual, not scheduled.
+An empty database shows an empty match list. API errors show an error state.
+
 The command validates the complete provider response before its single database
 write transaction. Imports of the same season cannot overlap, repeated imports
 update existing records, and provider omissions do not delete stored matches.
@@ -86,6 +99,38 @@ trigger synchronization. Each list response reads its count and items from one
 database snapshot. Offset pages can still change between requests when an import
 updates data.
 
+## Frontend development
+
+The React and TypeScript frontend lives in `frontend/`. It uses the existing
+FastAPI OpenAPI document for generated request and response types. With the API
+running on port 8000 and Node.js 24 (the CI/Docker version) installed:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open <http://localhost:5173/football/champions-league/matches>. The dev server
+proxies `/api` to FastAPI on port 8000; the Docker frontend uses nginx for the
+same path. Every displayed match comes from the backend database.
+
+Frontend checks are:
+
+```bash
+npm run lint
+npm run format:check
+npm run typecheck
+npm run test:coverage
+npm run build
+```
+
+`npm run lint` generates React Router route types before typed ESLint checks,
+so it also works on a fresh checkout without a prior dev-server or build run.
+
+After changing FastAPI response models or routes, regenerate the committed API
+schema and TypeScript declarations with `npm run api:generate` from `frontend/`.
+
 ## Architecture
 
 - `api/routes`: FastAPI route handlers.
@@ -97,6 +142,7 @@ updates data.
 - `football_models.py`: shared Pydantic filters and response models, without duplicate read DTOs.
 - `queries`: match queries using caller-owned sessions, returning the shared response models.
 - `settings.py`: environment-based application configuration.
+- `frontend`: React Router SPA for browsing Champions League schedules and results.
 
 Football ORM models and relationships live in `database/models/football.py`.
 `queries/champions_league_matches.py` implements the read queries. There is no scheduled

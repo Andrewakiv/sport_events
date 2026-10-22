@@ -1,0 +1,65 @@
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createMemoryRouter, RouterProvider, useLocation } from "react-router";
+import { describe, expect, it } from "vitest";
+
+import { parseFilters } from "../../shared/filters";
+import { MatchFiltersPanel } from "./match-filters";
+
+function FiltersRoute() {
+  const location = useLocation();
+  const filters = parseFilters(new URL(location.search, "http://localhost"));
+  return <MatchFiltersPanel filters={filters} />;
+}
+
+describe("MatchFiltersPanel", () => {
+  it("removes empty filters, resets offset and preserves the page size", async () => {
+    const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [{ path: "/", Component: FiltersRoute }],
+      { initialEntries: ["/?limit=2&offset=4&team_id=64"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Status" }),
+      "FINISHED",
+    );
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      const params = new URLSearchParams(router.state.location.search);
+      expect(Object.fromEntries(params)).toEqual({
+        limit: "2",
+        status: "FINISHED",
+      });
+    });
+  });
+
+  it("updates form values after reset and back navigation", async () => {
+    const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [{ path: "*", Component: FiltersRoute }],
+      { initialEntries: ["/?season=2026&status=FINISHED"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.click(screen.getByRole("link", { name: "Reset" }));
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Season" })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("");
+    });
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    expect(screen.getByRole("combobox", { name: "Season" })).toHaveValue(
+      "2026",
+    );
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue(
+      "FINISHED",
+    );
+  });
+});
