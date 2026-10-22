@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { Form, Link, useSubmit } from "react-router";
+import { Form, Link, useNavigation, useSubmit } from "react-router";
 
 import type { MatchFilters } from "../../shared/api/types";
 
@@ -14,6 +14,7 @@ const STATUSES = [
 
 export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
   const submit = useSubmit();
+  const pending = useNavigation().state !== "idle";
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,7 +73,11 @@ export function MatchFiltersPanel({ filters }: { filters: MatchFilters }) {
           </select>
         </label>
 
-        <button className="button button-primary" type="submit">
+        <button
+          className="button button-primary"
+          type="submit"
+          disabled={pending}
+        >
           Apply
         </button>
       </Form>

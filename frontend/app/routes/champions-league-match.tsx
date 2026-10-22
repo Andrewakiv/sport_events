@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/champions-league-match";
 import { ApiError, getMatch } from "../shared/api/client";
 import type { Match } from "../shared/api/types";
+import { safeReturnTo } from "../shared/return-to";
 import {
   formatLongKickoff,
   stageLabel,
@@ -159,9 +160,4 @@ function Fact({ label, value }: { label: string; value: string }) {
       <dd>{value}</dd>
     </div>
   );
-}
-
-function safeReturnTo(value: string | null): string {
-  const fallback = "/football/champions-league/matches";
-  return value?.startsWith(fallback) ? value : fallback;
 }

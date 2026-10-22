@@ -7,6 +7,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 const timeFormatter = new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
 });
 
 const longDateFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -16,6 +17,7 @@ const longDateFormatter = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
   timeZoneName: "short",
 });
 

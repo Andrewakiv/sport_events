@@ -1086,3 +1086,8 @@ select {
     transition-duration: 0.01ms !important;
   }
 }
+
+.matches-panel.is-pending {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}

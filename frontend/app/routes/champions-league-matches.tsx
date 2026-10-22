@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useNavigation } from "react-router";
 
 import type { Route } from "./+types/champions-league-matches";
 import { MatchCard } from "../entities/match/match-card";
@@ -50,6 +50,8 @@ export async function clientLoader({
 export default function ChampionsLeagueMatches({
   loaderData,
 }: Route.ComponentProps) {
+  const pending = useNavigation().state === "loading";
+
   return (
     <main>
       <section className="competition-hero">
@@ -71,7 +73,11 @@ export default function ChampionsLeagueMatches({
       <div className="content-grid">
         <MatchFiltersPanel filters={loaderData.filters} />
 
-        <section className="matches-panel" aria-labelledby="matches-heading">
+        <section
+          className={pending ? "matches-panel is-pending" : "matches-panel"}
+          aria-labelledby="matches-heading"
+          aria-busy={pending}
+        >
           <div className="matches-toolbar">
             <div>
               <p className="eyebrow">Match centre</p>

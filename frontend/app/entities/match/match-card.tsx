@@ -20,12 +20,27 @@ export function MatchCard({ match }: MatchCardProps) {
 
   const finished = match.status === "FINISHED";
   const live = match.status === "IN_PLAY" || match.status === "PAUSED";
+  const homeName = match.home_team?.name ?? "Team to be confirmed";
+  const awayName = match.away_team?.name ?? "Team to be confirmed";
+  const teams =
+    finished && match.score
+      ? `${homeName} ${match.score.home}, ${awayName} ${match.score.away}`
+      : `${homeName} versus ${awayName}`;
+  const label = [
+    teams,
+    statusLabel(match.status),
+    formatMatchTime(match.kickoff_at),
+    stageLabel(match.stage),
+    match.matchday !== null ? `Matchday ${match.matchday}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Link
       className="match-card"
       to={`${match.id}?${detailSearch.toString()}`}
-      aria-label={`${match.home_team?.name ?? "Team to be confirmed"} — ${match.away_team?.name ?? "Team to be confirmed"}`}
+      aria-label={label}
     >
       <div className="match-time">
         <strong>{formatMatchTime(match.kickoff_at)}</strong>
