@@ -24,11 +24,12 @@
 
 ## Verification
 
-- Run `uv run --locked ruff check .` and `uv run --locked ruff format --check .`.
-- Run `uv run --locked mypy`.
-- Run `uv run --locked pytest -m "not integration" --cov` for every change.
-- Run integration tests when changing database connections, models, migrations, or behavior.
 - Add or update tests for every behavior change.
+- Use two verification stages:
+  1. During implementation, run only tests relevant to the changed behavior and targeted checks as needed. Do not rerun the full suite after every small edit.
+  2. Before opening or updating a PR, run the full required checks on the final change set: `uv run --locked ruff check .`, `uv run --locked ruff format --check .`, `uv run --locked mypy`, and `uv run --locked pytest -m "not integration" --cov`. Also run integration tests when changing database connections, models, migrations, or behavior.
+- Reuse successful verification results while the files and configuration relevant to those checks remain unchanged. Repeat affected checks after further changes; rerun the full suite when shared behavior, dependencies, test configuration, or the impact of a change makes targeted verification insufficient. Do not reuse results from an unverified final change set.
+- Record the verified revision or change set and test results in the PR. Keep successful command output concise; inspect detailed logs when a check fails.
 
 ## Database changes
 
