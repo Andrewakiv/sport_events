@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pageSearchParams, parseFilters } from "./filters";
+import { lastPageOffset, pageSearchParams, parseFilters } from "./filters";
 
 describe("parseFilters", () => {
   it("reads valid API filters from the URL", () => {
@@ -51,4 +51,19 @@ describe("pageSearchParams", () => {
     const params = new URLSearchParams("season=2026&offset=25");
     expect(pageSearchParams(params, 0).toString()).toBe("season=2026");
   });
+});
+
+describe("lastPageOffset", () => {
+  it.each([
+    [0, 25, 0],
+    [1, 25, 0],
+    [25, 25, 0],
+    [26, 25, 25],
+    [51, 25, 50],
+  ])(
+    "total %i with limit %i starts the last page at %i",
+    (total, limit, expected) => {
+      expect(lastPageOffset(total, limit)).toBe(expected);
+    },
+  );
 });

@@ -4,6 +4,7 @@ import type { Route } from "./+types/champions-league-matches";
 import { MatchCard } from "../entities/match/match-card";
 import { MatchFiltersPanel } from "../features/match-filters/match-filters";
 import { MatchPagination } from "../features/match-pagination/match-pagination";
+import { PageOutOfRange } from "../features/match-pagination/page-out-of-range";
 import { ApiError, getMatches } from "../shared/api/client";
 import type { Match, MatchPage } from "../shared/api/types";
 import { parseFilters } from "../shared/filters";
@@ -91,7 +92,14 @@ export default function ChampionsLeagueMatches({
               status={loaderData.status}
             />
           ) : loaderData.result.items.length === 0 ? (
-            <EmptyState />
+            loaderData.result.total > 0 ? (
+              <PageOutOfRange
+                limit={loaderData.result.limit}
+                total={loaderData.result.total}
+              />
+            ) : (
+              <EmptyState />
+            )
           ) : (
             <>
               <MatchGroups matches={loaderData.result.items} />

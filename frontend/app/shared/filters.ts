@@ -26,6 +26,10 @@ export function pageSearchParams(
   return next;
 }
 
+export function lastPageOffset(total: number, limit: number): number {
+  return total <= 0 ? 0 : Math.floor((total - 1) / limit) * limit;
+}
+
 function optionalInteger(
   value: string | null,
   minimum: number,
