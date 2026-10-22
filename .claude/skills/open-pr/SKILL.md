@@ -26,8 +26,8 @@ outward-facing action (push, PR creation, comments, board changes).
 4. Run the full required checks on the final change set (see `AGENTS.md`):
    backend `uv run --locked ruff check .`, `ruff format --check .`, `mypy`,
    `pytest -m "not integration" --cov` (plus integration tests when touching
-   database connections, models, migrations or behavior); frontend via the
-   `frontend-verify` skill.
+   database connections, models, migrations or behavior). When `frontend/` exists and the change touches it, also run the
+   `frontend-verify` skill; skip it otherwise.
 5. Push, then open the PR (draft unless the user says it is ready):
    `gh pr create --base main --title "<conventional title> (#<issue>)" --body-file <file>`.
    Fill `.github/PULL_REQUEST_TEMPLATE.md`:
@@ -43,8 +43,8 @@ outward-facing action (push, PR creation, comments, board changes).
 
 ## Merge
 
-Never merge while required CI (`quality`, `integration`, `docker-smoke`,
-`frontend`) is failing. Merging is done by a human with GitHub
+Never merge while required CI (`quality`, `integration`, `docker-smoke`, and
+`frontend` once that job exists) is failing. Merging is done by a human with GitHub
 **Squash and merge** and a Conventional Commit title containing the issue
 number, for example `chore: document squash merge policy (#16)`.
 
