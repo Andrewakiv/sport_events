@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     String,
     UniqueConstraint,
 )
@@ -78,3 +79,35 @@ class FootballMatch(DatabaseModel):
     season: Mapped[FootballSeason] = relationship()
     home_team: Mapped[FootballTeam | None] = relationship(foreign_keys=[home_team_id])
     away_team: Mapped[FootballTeam | None] = relationship(foreign_keys=[away_team_id])
+
+
+class FootballSyncRun(DatabaseModel):
+    """Durable outcome of one queued season synchronization; job_id is the queue's job."""
+
+    __tablename__ = "football_sync_runs"
+    __table_args__ = (
+        CheckConstraint("trigger IN ('scheduled', 'manual')", name="ck_football_sync_runs_trigger"),
+        CheckConstraint(
+            "status IN ('running', 'retry_scheduled', 'succeeded', 'failed', "
+            "'skipped_locked', 'interrupted')",
+            name="ck_football_sync_runs_status",
+        ),
+        CheckConstraint("attempts >= 1", name="ck_football_sync_runs_attempts"),
+        CheckConstraint(
+            "matches_created >= 0 AND matches_updated >= 0",
+            name="ck_football_sync_runs_counts_nonnegative",
+        ),
+        Index("ix_football_sync_runs_season_started", "season_start_year", "started_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    job_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    season_start_year: Mapped[int]
+    trigger: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20))
+    attempts: Mapped[int]
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    matches_created: Mapped[int | None]
+    matches_updated: Mapped[int | None]
+    failure_reason: Mapped[str | None] = mapped_column(String(200))

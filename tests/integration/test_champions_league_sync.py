@@ -118,8 +118,8 @@ async def test_repeat_import_corrections_and_provider_omissions() -> None:
     async with migrated_engine() as engine:
         store = PostgresSeasonSnapshotStore(engine)
         original = season_snapshot()
-        assert await store.store(original) == SyncResult(matches_processed=2)
-        await store.store(original)
+        assert await store.store(original) == SyncResult(matches_created=2, matches_updated=0)
+        assert await store.store(original) == SyncResult(matches_created=0, matches_updated=0)
 
         corrected_match = replace(
             original.matches[1],
@@ -131,7 +131,7 @@ async def test_repeat_import_corrections_and_provider_omissions() -> None:
             away_score=0,
         )
         corrected = replace(original, matches=(corrected_match,))
-        await store.store(corrected)
+        assert await store.store(corrected) == SyncResult(matches_created=0, matches_updated=1)
 
         async with engine.connect() as connection:
             assert (
@@ -202,7 +202,7 @@ class FailingSource:
 
 class NoopStore:
     async def store(self, snapshot: SeasonSnapshot) -> SyncResult:
-        return SyncResult(matches_processed=len(snapshot.matches))
+        return SyncResult(matches_created=len(snapshot.matches), matches_updated=0)
 
 
 @pytest.mark.integration
@@ -245,7 +245,7 @@ async def test_lock_ends_transaction_rejects_overlap_and_releases() -> None:
                 await second.execute(2026)
         finally:
             blocking_source.release.set()
-        assert await first_task == SyncResult(matches_processed=2)
+        assert await first_task == SyncResult(matches_created=2, matches_updated=0)
 
         failing = SynchronizeChampionsLeagueSeason(
             source=FailingSource(),
@@ -270,7 +270,7 @@ async def test_lock_ends_transaction_rejects_overlap_and_releases() -> None:
                 {"namespace": 7_200_001, "season": 2026},
             )
         assert held_locks == 0
-        assert await first.execute(2026) == SyncResult(matches_processed=2)
+        assert await first.execute(2026) == SyncResult(matches_created=2, matches_updated=0)
 
 
 @pytest.mark.integration

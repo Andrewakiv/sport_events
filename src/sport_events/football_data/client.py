@@ -53,7 +53,9 @@ class FootballDataClient:
         if status == 429:
             raise FootballDataRateLimitError("football-data.org rate limit exceeded (HTTP 429)")
         if status >= 300:
-            raise FootballDataProviderError(f"football-data.org returned HTTP {status}")
+            raise FootballDataProviderError(
+                f"football-data.org returned HTTP {status}", status_code=status
+            )
 
         try:
             parsed = FootballDataMatchesResponse.model_validate(response.json())

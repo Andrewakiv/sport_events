@@ -66,7 +66,7 @@ class RecordingStore:
 
     async def store(self, value: SeasonSnapshot) -> SyncResult:
         self.calls.append("store")
-        return SyncResult(matches_processed=len(value.matches))
+        return SyncResult(matches_created=len(value.matches), matches_updated=0)
 
 
 @pytest.mark.asyncio
@@ -80,7 +80,7 @@ async def test_sync_acquires_lock_and_fetches_before_persistence() -> None:
 
     result = await operation.execute(2026)
 
-    assert result == SyncResult(matches_processed=1)
+    assert result == SyncResult(matches_created=1, matches_updated=0)
     assert calls == ["lock:2026", "fetch:2026", "store", "unlock"]
 
 
