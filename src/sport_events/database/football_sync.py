@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import select, text
+from sqlalchemy import Boolean, literal_column, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
@@ -59,8 +59,7 @@ class PostgresSeasonSnapshotStore:
             competition_id = await self._upsert_competition(connection, snapshot)
             season_id = await self._upsert_season(connection, competition_id, snapshot)
             team_ids = await self._upsert_teams(connection, snapshot)
-            await self._upsert_matches(connection, season_id, team_ids, snapshot)
-        return SyncResult(matches_processed=len(snapshot.matches))
+            return await self._upsert_matches(connection, season_id, team_ids, snapshot)
 
     async def _upsert_competition(
         self, connection: AsyncConnection, snapshot: SeasonSnapshot
@@ -142,7 +141,8 @@ class PostgresSeasonSnapshotStore:
         season_id: int,
         team_ids: dict[int, int],
         snapshot: SeasonSnapshot,
-    ) -> None:
+    ) -> SyncResult:
+        created = updated = 0
         for match in snapshot.matches:
             values = {
                 "provider_id": match.provider_id,
@@ -162,11 +162,25 @@ class PostgresSeasonSnapshotStore:
                 "away_score": match.away_score,
                 "score_duration": match.score_duration,
             }
-            await connection.execute(
-                insert(FootballMatch)
-                .values(**values)
-                .on_conflict_do_update(
+            changes = {key: value for key, value in values.items() if key != "provider_id"}
+            statement = insert(FootballMatch).values(**values)
+            # Unchanged rows are not rewritten and return no row; xmax = 0 marks an insert.
+            inserted = await connection.scalar(
+                statement.on_conflict_do_update(
                     index_elements=[FootballMatch.provider_id],
-                    set_={key: value for key, value in values.items() if key != "provider_id"},
-                )
+                    set_=changes,
+                    where=or_(
+                        *(
+                            FootballMatch.__table__.c[key].is_distinct_from(
+                                statement.excluded[key]
+                            )
+                            for key in changes
+                        )
+                    ),
+                ).returning(literal_column("xmax = 0", Boolean))
             )
+            if inserted is True:
+                created += 1
+            elif inserted is False:
+                updated += 1
+        return SyncResult(matches_created=created, matches_updated=updated)
