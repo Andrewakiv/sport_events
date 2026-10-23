@@ -109,9 +109,10 @@ async def test_does_not_forward_token_on_redirect(monkeypatch: pytest.MonkeyPatc
         transport=httpx.MockTransport(redirect), follow_redirects=True
     ) as http_client:
         client = FootballDataClient(settings=settings, http_client=http_client)
-        with pytest.raises(FootballDataProviderError, match="HTTP 302"):
+        with pytest.raises(FootballDataProviderError, match="HTTP 302") as raised:
             await client.get_champions_league_matches(2026)
 
+    assert raised.value.status_code == 302
     assert len(requests) == 1
     assert requests[0].headers["X-Auth-Token"] == "test-token"
 

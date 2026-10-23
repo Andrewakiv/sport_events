@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     champions_league_sync_retry_base_seconds: int = Field(default=30, ge=1)
     champions_league_sync_retry_max_seconds: int = Field(default=300, ge=1)
     sync_worker_stalled_after_seconds: int = Field(default=60, ge=30)
+
+    @model_validator(mode="after")
+    def require_ordered_retry_delays(self) -> "Settings":
+        if (
+            self.champions_league_sync_retry_base_seconds
+            > self.champions_league_sync_retry_max_seconds
+        ):
+            raise ValueError("the retry base delay must not exceed the maximum delay")
+        return self
 
 
 @lru_cache

@@ -58,7 +58,8 @@ class SyncRetryPolicy:
         """Seconds to wait before the next attempt, or None when attempts are exhausted."""
         if attempt_number >= self.max_attempts:
             return None
-        return min(self.base_delay_seconds * 2 ** (attempt_number - 1), self.max_delay_seconds)
+        delay = self.base_delay_seconds * int(2 ** (attempt_number - 1))
+        return min(delay, self.max_delay_seconds)
 
 
 @dataclass(frozen=True)
@@ -139,9 +140,12 @@ class RunChampionsLeagueSyncAttempt:
                 attempt, SyncRunStatus.SUCCEEDED, self._clock(), result=result
             )
         except ChampionsLeagueSyncAlreadyRunningError:
-            await self._journal.record_finished(
-                attempt, SyncRunStatus.SKIPPED_LOCKED, self._clock()
-            )
+            try:
+                await self._journal.record_finished(
+                    attempt, SyncRunStatus.SKIPPED_LOCKED, self._clock()
+                )
+            except Exception:
+                logger.exception("Could not record skipped sync attempt %s", attempt.run_id)
             return SyncRunStatus.SKIPPED_LOCKED
         except Exception as error:
             failure = self._classifier.classify(error)

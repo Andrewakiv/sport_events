@@ -171,9 +171,7 @@ class PostgresSeasonSnapshotStore:
                     set_=changes,
                     where=or_(
                         *(
-                            FootballMatch.__table__.c[key].is_distinct_from(
-                                statement.excluded[key]
-                            )
+                            FootballMatch.__table__.c[key].is_distinct_from(statement.excluded[key])
                             for key in changes
                         )
                     ),
