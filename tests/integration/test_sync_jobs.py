@@ -122,6 +122,20 @@ async def test_queue_schema_migration_round_trip() -> None:
         assert await procrastinate_objects(engine) == installed
 
 
+@pytest.mark.integration
+async def test_autogenerate_detects_no_changes_after_migrations() -> None:
+    # Fails if autogenerate would propose dropping the procrastinate-owned queue tables
+    # or if the ORM models drift from the migrations.
+    async with migrated_schema() as (_, _, engine), engine.connect() as connection:
+
+        def check(sync_connection: object) -> None:
+            config = Config("alembic.ini")
+            config.attributes["connection"] = sync_connection
+            command.check(config)
+
+        await connection.run_sync(check)
+
+
 async def stored_run(engine: AsyncEngine, job_id: int) -> FootballSyncRun:
     async with engine.connect() as connection:
         row = (

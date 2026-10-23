@@ -1,3 +1,5 @@
+-- Copied verbatim from procrastinate 3.10.0 (procrastinate/sql/schema.sql); do not edit.
+-- A procrastinate upgrade that changes this schema needs a new Alembic revision.
 -- Procrastinate Schema
 
 DO $$
