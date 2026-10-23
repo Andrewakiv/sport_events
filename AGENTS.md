@@ -40,6 +40,8 @@
 ## Git and pull requests
 
 - Before implementation, ensure an existing GitHub Issue is on the project board with relevant labels; no issue means no PR.
+- Before starting an issue, check `git status` and the current branch. If there are uncommitted or untracked (non-ignored) changes, stop, report them, and agree with the user how to finish them: commit them to their own issue branch and PR, or the user explicitly discards or defers them. Do not switch branches, stash, or create worktrees or repository copies to work around them unless the user asks.
+- Start the issue branch from up-to-date `origin/main` in the existing checkout only once the working tree is clean.
 - Use branches named `feat/<issue>-<slug>`, `fix/<issue>-<slug>`, or `chore/<issue>-<slug>`.
 - Use Conventional Commits.
 - Link every PR to its issue with `Closes #<number>` or `Refs #<number>` in the description, and include acceptance criteria, test evidence, migration impact, and risks.
