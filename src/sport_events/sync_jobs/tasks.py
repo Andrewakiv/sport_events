@@ -50,6 +50,8 @@ class RetryRequestedBySyncAttempt(BaseRetryStrategy):
         if isinstance(exception, SyncAttemptRetryRequestedError):
             return RetryDecision(retry_in={"seconds": exception.retry_in_seconds})
         if isinstance(exception, asyncio.CancelledError):
+            # Only graceful-shutdown cancellation is expected today; if job aborting is ever
+            # used, distinguish it here so aborted jobs are not retried.
             retry_in = retry_policy(get_settings()).retry_delay_after(job.attempts + 1)
             if retry_in is not None:
                 return RetryDecision(retry_in={"seconds": retry_in})
@@ -81,6 +83,8 @@ async def enqueue_season_sync(season_start_year: int, trigger: SyncTrigger) -> i
 async def sync_champions_league_season(
     context: JobContext, season_start_year: int, trigger: str
 ) -> str:
+    # The arguments only identify the run; the attempt is rebuilt from the job so that
+    # retries use the queue's attempt counter, not the values passed at enqueue time.
     async with sync_attempt_runner(get_settings()) as runner:
         status = await runner.execute(attempt_from_job(context.job))
     return status.value
@@ -118,6 +122,8 @@ async def recover_stalled_syncs(context: JobContext, timestamp: int) -> int:
         return 0
     async with sync_attempt_runner(settings) as runner:
         for job in stalled:
+            # The journal and the queue are updated separately. If this worker dies in
+            # between, the job is still "doing" and the next pass repeats both upserts.
             retry_in = await runner.record_interruption(attempt_from_job(job))
             if retry_in is None:
                 await manager.finish_job(job, status=Status.FAILED, delete_job=False)

@@ -81,7 +81,10 @@ PostgreSQL database (migrations `0003` and `0004`). The worker needs
   start/end time, status, attempts, created/updated match counts, and a safe
   failure reason. A run left `doing` by a dead worker is detected within about
   five minutes, recorded, and retried while attempts remain; otherwise it stays
-  `interrupted`. Queue it again to retry.
+  `interrupted`. Queue it again to retry. A run that finds its season already being
+  synchronized outside the queue ends as `skipped_locked` without retrying and without
+  syncing anything, so a manual backfill that reports success may have imported nothing;
+  check the status in `football_sync_runs`.
 
   ```sql
   SELECT season_start_year, trigger, status, attempts, matches_created,

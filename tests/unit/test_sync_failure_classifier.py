@@ -1,3 +1,5 @@
+import socket
+
 import pytest
 from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 
@@ -58,6 +60,9 @@ PERMANENT = FailureKind.PERMANENT
             SyncFailure(TRANSIENT, "database is unavailable"),
         ),
         (ConnectionRefusedError(), SyncFailure(TRANSIENT, "database is unavailable")),
+        (TimeoutError(), SyncFailure(TRANSIENT, "database is unavailable")),
+        (socket.gaierror(), SyncFailure(TRANSIENT, "database is unavailable")),
+        (FileNotFoundError(), SyncFailure(PERMANENT, "unexpected error (FileNotFoundError)")),
         (
             DBAPIError("SELECT 1", {}, Exception("lost"), connection_invalidated=True),
             SyncFailure(TRANSIENT, "database connection was lost"),

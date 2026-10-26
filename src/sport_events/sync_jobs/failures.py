@@ -1,5 +1,7 @@
 """Classify Champions League sync failures as transient or permanent."""
 
+import socket
+
 from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 
 from sport_events.football_data.errors import (
@@ -35,7 +37,15 @@ class ChampionsLeagueSyncFailureClassifier:
                 return _permanent(f"provider returned HTTP {status}")
             case FootballDataResponseError():
                 return _permanent("provider returned invalid match data")
-            case OperationalError() | InterfaceError() | OSError():
+            # Raw socket errors from the driver are not wrapped by SQLAlchemy; other OSError
+            # subclasses (missing file, permissions) are bugs, not outages.
+            case (
+                OperationalError()
+                | InterfaceError()
+                | ConnectionError()
+                | TimeoutError()
+                | socket.gaierror()
+            ):
                 return _transient("database is unavailable")
             case DBAPIError(connection_invalidated=True):
                 return _transient("database connection was lost")
