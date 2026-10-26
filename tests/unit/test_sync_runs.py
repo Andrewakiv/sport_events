@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import NoReturn
@@ -8,6 +9,7 @@ from sport_events.football_sync.models import SyncResult
 from sport_events.football_sync.operation import ChampionsLeagueSyncAlreadyRunningError
 from sport_events.football_sync.runs import (
     INTERRUPTED_REASON,
+    SHUTDOWN_REASON,
     FailureKind,
     RunChampionsLeagueSyncAttempt,
     SyncAttempt,
@@ -215,3 +217,35 @@ def test_settings_reject_retry_base_above_maximum() -> None:
             champions_league_sync_retry_base_seconds=600,
             champions_league_sync_retry_max_seconds=300,
         )
+
+
+class BlockingSynchronizer:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+
+    async def execute(self, season_start_year: int) -> NoReturn:
+        self.started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+
+@pytest.mark.parametrize(
+    ("attempt_number", "expected_entry"),
+    [
+        (1, ("retry", 1, SHUTDOWN_REASON)),
+        (3, ("finished", SyncRunStatus.INTERRUPTED, None, SHUTDOWN_REASON)),
+    ],
+)
+async def test_cancelled_attempt_is_journaled_and_cancellation_propagates(
+    attempt_number: int, expected_entry: tuple[object, ...]
+) -> None:
+    journal = RecordingJournal()
+    synchronizer = BlockingSynchronizer()
+    running = asyncio.create_task(runner(synchronizer, journal).execute(attempt(attempt_number)))
+    await synchronizer.started.wait()
+
+    running.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await running
+
+    assert journal.entries[-1] == expected_entry

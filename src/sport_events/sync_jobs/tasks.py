@@ -1,5 +1,6 @@
 """Queued, scheduled, and recovery jobs for Champions League synchronization."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -39,11 +40,19 @@ FINISHED_JOB_RETENTION_HOURS = 14 * 24
 
 
 class RetryRequestedBySyncAttempt(BaseRetryStrategy):
-    """Retry only when the sync rules ask for it, after the delay they chose."""
+    """Retry when the sync rules ask for it, or when shutdown cancelled an attempt.
+
+    Procrastinate cancels async jobs that outlive ``--shutdown-graceful-timeout``; the run
+    rules have already journaled the interruption, and the same policy bounds its retries.
+    """
 
     def get_retry_decision(self, *, exception: BaseException, job: Job) -> RetryDecision | None:
         if isinstance(exception, SyncAttemptRetryRequestedError):
             return RetryDecision(retry_in={"seconds": exception.retry_in_seconds})
+        if isinstance(exception, asyncio.CancelledError):
+            retry_in = retry_policy(get_settings()).retry_delay_after(job.attempts + 1)
+            if retry_in is not None:
+                return RetryDecision(retry_in={"seconds": retry_in})
         return None
 
 

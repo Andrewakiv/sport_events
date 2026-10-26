@@ -1,5 +1,6 @@
 """Framework-independent rules for recording and retrying Champions League sync attempts."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ from sport_events.football_sync.operation import ChampionsLeagueSyncAlreadyRunni
 logger = logging.getLogger(__name__)
 
 INTERRUPTED_REASON = "worker stopped responding during the attempt"
+SHUTDOWN_REASON = "worker shut down during the attempt"
 
 
 class SyncTrigger(StrEnum):
@@ -147,6 +149,14 @@ class RunChampionsLeagueSyncAttempt:
             except Exception:
                 logger.exception("Could not record skipped sync attempt %s", attempt.run_id)
             return SyncRunStatus.SKIPPED_LOCKED
+        except asyncio.CancelledError:
+            # The job runner cancels attempts that outlive a graceful shutdown; the season
+            # transaction has rolled back, so record the interruption and let it propagate.
+            try:
+                await self.record_interruption(attempt, SHUTDOWN_REASON)
+            except Exception:
+                logger.exception("Could not record cancelled sync attempt %s", attempt.run_id)
+            raise
         except Exception as error:
             failure = self._classifier.classify(error)
             retry_in = (
@@ -162,15 +172,17 @@ class RunChampionsLeagueSyncAttempt:
             raise SyncRunFailedError(failure.reason) from error
         return SyncRunStatus.SUCCEEDED
 
-    async def record_interruption(self, attempt: SyncAttempt) -> int | None:
-        """Record an attempt abandoned by a dead worker; return the retry delay, if any."""
+    async def record_interruption(
+        self, attempt: SyncAttempt, reason: str = INTERRUPTED_REASON
+    ) -> int | None:
+        """Record an attempt that did not finish; return the retry delay, if any."""
         retry_in = self._retry_policy.retry_delay_after(attempt.number)
         if retry_in is None:
             await self._journal.record_finished(
-                attempt, SyncRunStatus.INTERRUPTED, self._clock(), reason=INTERRUPTED_REASON
+                attempt, SyncRunStatus.INTERRUPTED, self._clock(), reason=reason
             )
         else:
-            await self._journal.record_retry(attempt, INTERRUPTED_REASON)
+            await self._journal.record_retry(attempt, reason)
         return retry_in
 
     async def _record_failure_best_effort(

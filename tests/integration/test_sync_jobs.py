@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import sys
 from collections.abc import AsyncIterator
@@ -20,6 +21,7 @@ from sport_events.database.models.football import FootballSyncRun
 from sport_events.football_sync.models import SyncResult
 from sport_events.football_sync.runs import (
     INTERRUPTED_REASON,
+    SHUTDOWN_REASON,
     RunChampionsLeagueSyncAttempt,
     SyncAttempt,
     SyncRetryPolicy,
@@ -197,32 +199,63 @@ class CountingSynchronizer:
         return SyncResult(matches_created=1, matches_updated=0)
 
 
+class BlockingSynchronizer:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+
+    async def execute(self, season_start_year: int) -> SyncResult:
+        self.started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+
+def use_test_runner(
+    monkeypatch: pytest.MonkeyPatch,
+    engine: AsyncEngine,
+    synchronizer: CountingSynchronizer | BlockingSynchronizer,
+) -> None:
+    @asynccontextmanager
+    async def test_runner(settings: Settings) -> AsyncIterator[RunChampionsLeagueSyncAttempt]:
+        yield RunChampionsLeagueSyncAttempt(
+            synchronizer=synchronizer,
+            journal=PostgresSyncRunJournal(engine),
+            classifier=ChampionsLeagueSyncFailureClassifier(),
+            retry_policy=SyncRetryPolicy(
+                max_attempts=3, base_delay_seconds=30, max_delay_seconds=300
+            ),
+            clock=lambda: datetime.now(UTC),
+        )
+
+    monkeypatch.setattr(tasks, "sync_attempt_runner", test_runner)
+    monkeypatch.setattr(tasks, "get_settings", lambda: Settings())
+
+
+def schema_connector(database_url: str, schema: str) -> PsycopgConnector:
+    return PsycopgConnector(
+        conninfo=queue_conninfo(database_url),
+        kwargs={"options": f"-c search_path={schema}"},
+    )
+
+
+async def job_state(engine: AsyncEngine, job_id: int) -> tuple[str, int]:
+    async with engine.connect() as connection:
+        status, attempts = (
+            await connection.execute(
+                text("SELECT status::text, attempts FROM procrastinate_jobs WHERE id = :id"),
+                {"id": job_id},
+            )
+        ).one()
+    return status, attempts
+
+
 @pytest.mark.integration
 async def test_queue_rejects_overlap_and_recovers_interrupted_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with migrated_schema() as (database_url, schema, engine):
         synchronizer = CountingSynchronizer()
-
-        @asynccontextmanager
-        async def test_runner(settings: Settings) -> AsyncIterator[RunChampionsLeagueSyncAttempt]:
-            yield RunChampionsLeagueSyncAttempt(
-                synchronizer=synchronizer,
-                journal=PostgresSyncRunJournal(engine),
-                classifier=ChampionsLeagueSyncFailureClassifier(),
-                retry_policy=SyncRetryPolicy(
-                    max_attempts=3, base_delay_seconds=30, max_delay_seconds=300
-                ),
-                clock=lambda: datetime.now(UTC),
-            )
-
-        monkeypatch.setattr(tasks, "sync_attempt_runner", test_runner)
-        monkeypatch.setattr(tasks, "get_settings", lambda: Settings())
-        connector = PsycopgConnector(
-            conninfo=queue_conninfo(database_url),
-            kwargs={"options": f"-c search_path={schema}"},
-        )
-        with app.replace_connector(connector):
+        use_test_runner(monkeypatch, engine, synchronizer)
+        with app.replace_connector(schema_connector(database_url, schema)):
             async with app.open_async():
                 job_id = await tasks.enqueue_season_sync(2026, SyncTrigger.SCHEDULED)
                 with pytest.raises(AlreadyEnqueued):
@@ -239,23 +272,13 @@ async def test_queue_rejects_overlap_and_recovers_interrupted_run(
                 assert await tasks.recover_stalled_syncs(context, timestamp=0) == 1
                 run = await stored_run(engine, job_id)
                 assert (run.status, run.failure_reason) == ("retry_scheduled", INTERRUPTED_REASON)
+                assert await job_state(engine, job_id) == ("todo", 1)
 
                 async with engine.begin() as connection:
-                    status, attempts = (
-                        await connection.execute(
-                            text(
-                                "SELECT status::text, attempts FROM procrastinate_jobs "
-                                "WHERE id = :id"
-                            ),
-                            {"id": job_id},
-                        )
-                    ).one()
-                    assert (status, attempts) == ("todo", 1)
                     await connection.execute(
                         text("UPDATE procrastinate_jobs SET scheduled_at = now() WHERE id = :id"),
                         {"id": job_id},
                     )
-
                 await app.run_worker_async(
                     queues=[tasks.QUEUE],
                     wait=False,
@@ -271,3 +294,38 @@ async def test_queue_rejects_overlap_and_recovers_interrupted_run(
             1,
             None,
         )
+
+
+@pytest.mark.integration
+async def test_worker_shutdown_journals_and_requeues_cancelled_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with migrated_schema() as (database_url, schema, engine):
+        synchronizer = BlockingSynchronizer()
+        use_test_runner(monkeypatch, engine, synchronizer)
+        with app.replace_connector(schema_connector(database_url, schema)):
+            async with app.open_async():
+                job_id = await tasks.enqueue_season_sync(2026, SyncTrigger.SCHEDULED)
+                worker = asyncio.create_task(
+                    app.run_worker_async(
+                        queues=[tasks.QUEUE],
+                        install_signal_handlers=False,
+                        listen_notify=False,
+                        fetch_job_polling_interval=0.1,
+                        shutdown_graceful_timeout=0.2,
+                    )
+                )
+                await asyncio.wait_for(synchronizer.started.wait(), timeout=10)
+
+                # Stopping the worker waits the graceful timeout, then cancels the attempt.
+                worker.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await worker
+
+        run = await stored_run(engine, job_id)
+        assert (run.status, run.attempts, run.failure_reason) == (
+            "retry_scheduled",
+            1,
+            SHUTDOWN_REASON,
+        )
+        assert await job_state(engine, job_id) == ("todo", 1)

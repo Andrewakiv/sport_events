@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -139,6 +140,19 @@ def test_retry_strategy_follows_sync_decision() -> None:
     assert abs((decision.retry_at - expected).total_seconds()) < 5
     for error in (SyncRunFailedError("rejected"), TimeoutError()):
         assert strategy.get_retry_decision(exception=error, job=job()) is None
+
+
+@pytest.mark.parametrize(("attempts", "retried"), [(0, True), (1, True), (2, False)])
+def test_retry_strategy_retries_shutdown_cancellation_within_attempts(
+    monkeypatch: pytest.MonkeyPatch, attempts: int, retried: bool
+) -> None:
+    use_settings(monkeypatch, champions_league_sync_max_attempts=3)
+
+    decision = tasks.RetryRequestedBySyncAttempt().get_retry_decision(
+        exception=asyncio.CancelledError(), job=job(attempts=attempts)
+    )
+
+    assert (decision is not None) is retried
 
 
 @pytest.mark.parametrize(

@@ -95,6 +95,42 @@ time, repeated imports update existing records, and provider omissions do not
 delete stored matches. Refresh the frontend after a successful import. An empty
 database shows an empty match list. API errors show an error state.
 
+### Stopping the sync worker
+
+`docker compose stop sync-worker` sends SIGTERM. The worker stops taking jobs and
+stops scheduling, then gives a running attempt 45 seconds
+(`--shutdown-graceful-timeout`) to finish. An attempt still running is cancelled:
+its season transaction rolls back, the journal records `worker shut down during the
+attempt`, and the run is queued again while attempts remain. Docker's
+`stop_grace_period` (60 s) leaves room for this before SIGKILL; a killed worker's
+run is picked up by the recovery job instead.
+
+### Upgrading procrastinate
+
+Migration `0003` keeps the procrastinate 3.10.0 schema and must not change.
+Procrastinate ships later schema changes as SQL files named
+`<version>_<serial>_<pre|post>_<name>.sql`; `pre` scripts must run before the new
+code is deployed and `post` scripts after it
+([procrastinate docs](https://procrastinate.readthedocs.io/en/stable/howto/production/migrations.html)).
+`tests/unit/test_vendored_queue_schema.py` fails while an installed release has
+scripts that no revision applies.
+
+1. Copy the new scripts from the installed package's `procrastinate/sql/migrations`
+   into `migrations/sql` unchanged, and add an Alembic revision that executes them
+   in file order the same way `0003` does.
+2. Stop the worker and do not run `sync-champions-league` until the upgrade is done
+   (the API does not queue jobs):
+
+   ```bash
+   docker compose build api sync-worker            # images with the new code and revisions
+   docker compose stop sync-worker
+   docker compose run --rm api alembic upgrade head
+   docker compose up -d api sync-worker
+   ```
+
+Upgrading without stopping the worker requires separate `pre` and `post` revisions
+deployed one procrastinate release at a time, as the procrastinate docs describe.
+
 ## Champions League read API
 
 - `GET /api/v1/football/champions-league/matches` lists imported matches.

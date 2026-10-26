@@ -18,7 +18,15 @@ services:
 
   sync-worker:
     build: .
-    command: ["procrastinate", "--app=sport_events.sync_jobs.app.app", "worker", "--queues=football"]
+    # A running attempt gets 45 s to finish on stop; procrastinate then cancels it (journaled
+    # and retried) before Docker's SIGKILL at the 60 s grace period.
+    command:
+      - procrastinate
+      - --app=sport_events.sync_jobs.app.app
+      - worker
+      - --queues=football
+      - --shutdown-graceful-timeout=45
+    stop_grace_period: 60s
     env_file:
       - path: .env
         required: false
