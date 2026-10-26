@@ -28,6 +28,10 @@ class FootballDataTimeoutError(FootballDataNetworkError):
 class FootballDataProviderError(FootballDataClientError):
     """The provider returned an unexpected HTTP error."""
 
+    def __init__(self, message: str, *, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class FootballDataResponseError(FootballDataClientError):
     """The provider returned an invalid match-list response."""

@@ -53,28 +53,86 @@ The football-data.org client reads `FOOTBALL_DATA_API_TOKEN` from the local
 environment or `.env`. The token is only needed when calling that client; the
 API and tests do not call the provider automatically. Never commit a real token.
 
-After applying migrations, synchronize one selected season manually with its
-start year:
+### Scheduled and manual synchronization
 
-```bash
-uv run --locked sync-champions-league 2026
-```
+Imports run in a separate `sync-worker` process backed by a
+[procrastinate](https://procrastinate.readthedocs.io/) job queue stored in the same
+PostgreSQL database (migrations `0003` and `0004`). The worker needs
+`FOOTBALL_DATA_API_TOKEN`; Docker Compose passes your local `.env` to it.
 
-For the Docker Compose setup, set `FOOTBALL_DATA_API_TOKEN` in your local
-`.env` file or shell environment, then run the existing importer inside a
-one-off API container (using the same database as the running API):
+- **Schedule.** Set `SPORT_EVENTS_CHAMPIONS_LEAGUE_SYNC_SEASON` to the current
+  season's start year. The worker queues that season on
+  `SPORT_EVENTS_CHAMPIONS_LEAGUE_SYNC_CRON` (UTC, default every 6 hours). Without
+  the setting nothing is scheduled; completed seasons are never polled.
+- **Manual run or backfill.** Queue any season for the worker:
 
-```bash
-docker compose run --rm -e FOOTBALL_DATA_API_TOKEN api sync-champions-league 2026
-```
+  ```bash
+  uv run --locked sync-champions-league 2026          # local worker
+  docker compose run --rm api sync-champions-league 2026
+  ```
 
-Refresh the frontend after a successful import. Repeat the command when you
-want to update stored fixtures/results; imports are manual, not scheduled.
-An empty database shows an empty match list. API errors show an error state.
+  Start a local worker with
+  `uv run --locked procrastinate --app=sport_events.sync_jobs.app.app worker --queues=football`.
+- **Retries.** Timeouts, network errors, provider 429/5xx, and database outages are
+  retried up to `SPORT_EVENTS_CHAMPIONS_LEAGUE_SYNC_MAX_ATTEMPTS` (default 3) with
+  exponential backoff (30 s, capped at 300 s). A missing or rejected token and
+  invalid provider data fail immediately.
+- **Outcomes.** Every run is recorded in `football_sync_runs`: season, trigger,
+  start/end time, status, attempts, created/updated match counts, and a safe
+  failure reason. A run left `doing` by a dead worker is detected within about
+  five minutes, recorded, and retried while attempts remain; otherwise it stays
+  `interrupted`. Queue it again to retry. A run that finds its season already being
+  synchronized outside the queue ends as `skipped_locked` without retrying and without
+  syncing anything, so a manual backfill that reports success may have imported nothing;
+  check the status in `football_sync_runs`.
 
-The command validates the complete provider response before its single database
-write transaction. Imports of the same season cannot overlap, repeated imports
-update existing records, and provider omissions do not delete stored matches.
+  ```sql
+  SELECT season_start_year, trigger, status, attempts, matches_created,
+         matches_updated, failure_reason, started_at, finished_at
+  FROM football_sync_runs ORDER BY started_at DESC LIMIT 20;
+  ```
+
+Each attempt validates the complete provider response before its single database
+write transaction. Only one run per season can wait in the queue or execute at a
+time, repeated imports update existing records, and provider omissions do not
+delete stored matches. Refresh the frontend after a successful import. An empty
+database shows an empty match list. API errors show an error state.
+
+### Stopping the sync worker
+
+`docker compose stop sync-worker` sends SIGTERM. The worker stops taking jobs and
+stops scheduling, then gives a running attempt 45 seconds
+(`--shutdown-graceful-timeout`) to finish. An attempt still running is cancelled:
+its season transaction rolls back, the journal records `worker shut down during the
+attempt`, and the run is queued again while attempts remain. Docker's
+`stop_grace_period` (60 s) leaves room for this before SIGKILL; a killed worker's
+run is picked up by the recovery job instead.
+
+### Upgrading procrastinate
+
+Migration `0003` keeps the procrastinate 3.10.0 schema and must not change.
+Procrastinate ships later schema changes as SQL files named
+`<version>_<serial>_<pre|post>_<name>.sql`; `pre` scripts must run before the new
+code is deployed and `post` scripts after it
+([procrastinate docs](https://procrastinate.readthedocs.io/en/stable/howto/production/migrations.html)).
+`tests/unit/test_vendored_queue_schema.py` fails while an installed release has
+scripts that no revision applies.
+
+1. Copy the new scripts from the installed package's `procrastinate/sql/migrations`
+   into `migrations/sql` unchanged, and add an Alembic revision that executes them
+   in file order the same way `0003` does.
+2. Stop the worker and do not run `sync-champions-league` until the upgrade is done
+   (the API does not queue jobs):
+
+   ```bash
+   docker compose build api sync-worker            # images with the new code and revisions
+   docker compose stop sync-worker
+   docker compose run --rm api alembic upgrade head
+   docker compose up -d api sync-worker
+   ```
+
+Upgrading without stopping the worker requires separate `pre` and `post` revisions
+deployed one procrastinate release at a time, as the procrastinate docs describe.
 
 ## Champions League read API
 
@@ -138,15 +196,17 @@ schema and TypeScript declarations with `npm run api:generate` from `frontend/`.
 - `api/dependencies.py`: request-scoped read sessions and injected dependencies.
 - `database`: SQLAlchemy base and PostgreSQL connection management.
 - `football_data`: Champions League provider HTTP client and response types.
-- `football_sync`: provider- and database-independent synchronization records and operation.
+- `football_sync`: provider- and database-independent synchronization records, operation,
+  and run/retry rules.
+- `sync_jobs`: procrastinate queue, scheduled and recovery jobs, and failure classification.
 - `football_models.py`: shared Pydantic filters and response models, without duplicate read DTOs.
 - `queries`: match queries using caller-owned sessions, returning the shared response models.
 - `settings.py`: environment-based application configuration.
 - `frontend`: React Router SPA for browsing Champions League schedules and results.
 
 Football ORM models and relationships live in `database/models/football.py`.
-`queries/champions_league_matches.py` implements the read queries. There is no scheduled
-import or Formula 1 implementation yet.
+`queries/champions_league_matches.py` implements the read queries. There is no
+Formula 1 implementation yet.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for implemented components,
 [docs/product-scope.md](docs/product-scope.md) for agreed scope versus open

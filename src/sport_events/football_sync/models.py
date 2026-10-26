@@ -48,4 +48,7 @@ class SeasonSnapshot:
 
 @dataclass(frozen=True)
 class SyncResult:
-    matches_processed: int
+    """Match rows changed by one season import; unchanged matches are not counted."""
+
+    matches_created: int
+    matches_updated: int

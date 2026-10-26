@@ -16,6 +16,27 @@ services:
       postgres:
         condition: service_healthy
 
+  sync-worker:
+    build: .
+    # A running attempt gets 45 s to finish on stop; procrastinate then cancels it (journaled
+    # and retried) before Docker's SIGKILL at the 60 s grace period.
+    command:
+      - procrastinate
+      - --app=sport_events.sync_jobs.app.app
+      - worker
+      - --queues=football
+      - --shutdown-graceful-timeout=45
+    stop_grace_period: 60s
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SPORT_EVENTS_DATABASE_URL: postgresql+asyncpg://sport_events:sport_events@postgres:5432/sport_events
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     environment:
