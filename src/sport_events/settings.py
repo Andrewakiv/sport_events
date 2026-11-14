@@ -26,6 +26,8 @@ class Settings(BaseSettings):
         validation_alias="ANTHROPIC_API_KEY",
         repr=False,
     )
+    chat_rate_limit_requests: int = Field(default=10, ge=1)
+    chat_rate_limit_window_seconds: int = Field(default=60, ge=1)
     # Only this season is polled on the schedule; completed seasons are backfilled manually.
     champions_league_sync_season: int | None = Field(default=None, ge=2000, le=2100)
     champions_league_sync_cron: str = "0 */6 * * *"

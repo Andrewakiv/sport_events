@@ -1,11 +1,14 @@
 from typing import Any, cast
 
-from anthropic import AsyncAnthropic
+import httpx
+import pytest
+from anthropic import APIConnectionError, AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolUseBlock
 
 from sport_events.match_chat.anthropic_model import AnthropicLanguageModel
 from sport_events.match_chat.conversation import (
     ChatMessage,
+    LanguageModelUnavailableError,
     ModelReply,
     ModelStop,
     ToolCall,
@@ -108,3 +111,19 @@ async def test_maps_refusal_and_other_stop_reasons() -> None:
 
     assert (await refused.reply("s", history, [], [TOOL])).stop is ModelStop.REFUSED
     assert (await truncated.reply("s", history, [], [TOOL])).stop is ModelStop.TRUNCATED
+
+
+class _FailingMessages:
+    async def create(self, **kwargs: Any) -> Message:
+        raise APIConnectionError(request=httpx.Request("POST", "https://api.example.test"))
+
+
+class _FailingClient:
+    messages = _FailingMessages()
+
+
+async def test_translates_sdk_errors_into_a_domain_error() -> None:
+    model = AnthropicLanguageModel(cast(AsyncAnthropic, _FailingClient()))
+
+    with pytest.raises(LanguageModelUnavailableError):
+        await model.reply("s", [ChatMessage("user", "q")], [], [TOOL])

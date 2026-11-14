@@ -6,6 +6,10 @@ from enum import StrEnum
 from typing import Any, Literal, Protocol
 
 
+class LanguageModelUnavailableError(Exception):
+    """The language model provider could not complete a request (outage, limit, or credentials)."""
+
+
 @dataclass(frozen=True)
 class ChatMessage:
     role: Literal["user", "assistant"]

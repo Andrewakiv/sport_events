@@ -157,6 +157,32 @@ trigger synchronization. Each list response reads its count and items from one
 database snapshot. Offset pages can still change between requests when an import
 updates data.
 
+## Champions League chat API
+
+`POST /api/v1/chat` answers questions about the imported Champions League data
+with Claude Haiku 5.5. The request body is the conversation kept in the page:
+`{"messages": [{"role": "user" | "assistant", "content": "..."}]}` with 1–20
+messages of 1–1000 characters, the last one from the user. The response is
+`{"answer": "...", "outcome": "answered" | "refused" | "truncated" | "step_limit"}`;
+non-answers carry a fixed message. Nothing is stored and there is no
+authentication yet.
+
+- Set `ANTHROPIC_API_KEY` (locally in `.env`); without it the endpoint returns
+  HTTP 503 `chat_unavailable`. Never commit the key.
+- Invalid conversations return 422. Provider failures (outage, provider rate
+  limit, bad key) return HTTP 502 with a fixed message; details are logged
+  without prompts.
+- Each client IP may send `SPORT_EVENTS_CHAT_RATE_LIMIT_REQUESTS` requests per
+  `SPORT_EVENTS_CHAT_RATE_LIMIT_WINDOW_SECONDS` (default 10 per 60 seconds);
+  excess requests get HTTP 429 with `Retry-After`. The limiter is in memory, so
+  the limit applies per API worker process.
+- Behind a reverse proxy, uvicorn only trusts `X-Forwarded-For` from the
+  addresses in the `FORWARDED_ALLOW_IPS` environment variable. Until it names
+  the proxy, all proxied traffic counts as one client and shares one limit.
+  Do not set it to `*` while the API port is reachable without the proxy.
+- The agent calls the model at most five times per request and reads the
+  database through read-only tools; it never calls the football provider.
+
 ## Frontend development
 
 The React and TypeScript frontend lives in `frontend/`. It uses the existing

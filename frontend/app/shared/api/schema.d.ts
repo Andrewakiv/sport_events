@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_api_v1_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/football/champions-league/matches": {
         parameters: {
             query?: never;
@@ -76,6 +93,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnswerOutcome
+         * @enum {string}
+         */
+        AnswerOutcome: "answered" | "refused" | "truncated" | "step_limit";
+        /** ChatMessageRequest */
+        ChatMessageRequest: {
+            /** Content */
+            content: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Messages */
+            messages: components["schemas"]["ChatMessageRequest"][];
+        };
+        /** ChatResponse */
+        ChatResponse: {
+            /** Answer */
+            answer: string;
+            outcome: components["schemas"]["AnswerOutcome"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -172,6 +215,60 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    chat_api_v1_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limit exceeded; see Retry-After. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The language model request failed. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Chat is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_matches_api_v1_football_champions_league_matches_get: {
         parameters: {
             query?: {
