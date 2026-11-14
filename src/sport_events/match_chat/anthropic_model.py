@@ -1,19 +1,23 @@
 """Claude adapter for the match chat agent; the only module that imports the Anthropic SDK."""
 
+import logging
 from collections.abc import Sequence
 from typing import cast
 
-from anthropic import AsyncAnthropic
+from anthropic import APIError, AsyncAnthropic
 from anthropic.types import ContentBlockParam, MessageParam, ToolParam
 
 from sport_events.match_chat.conversation import (
     ChatMessage,
+    LanguageModelUnavailableError,
     ModelReply,
     ModelStop,
     ToolCall,
     ToolDefinition,
     ToolRound,
 )
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-haiku-5-5"
 _REQUEST_TIMEOUT_SECONDS = 30.0
@@ -38,14 +42,24 @@ class AnthropicLanguageModel:
         rounds: Sequence[ToolRound],
         tools: Sequence[ToolDefinition],
     ) -> ModelReply:
-        response = await self._client.messages.create(
-            model=self._model,
-            max_tokens=self._max_tokens,
-            system=system,
-            tools=[_tool_param(tool) for tool in tools],
-            messages=_messages(history, rounds),
-            output_config={"effort": "low"},
-        )
+        try:
+            response = await self._client.messages.create(
+                model=self._model,
+                max_tokens=self._max_tokens,
+                system=system,
+                tools=[_tool_param(tool) for tool in tools],
+                messages=_messages(history, rounds),
+                output_config={"effort": "low"},
+            )
+        except APIError as error:
+            # Log only identifiers, never prompts, tool results, or provider messages.
+            logger.warning(
+                "Language model request failed: %s status=%s request_id=%s",
+                type(error).__name__,
+                getattr(error, "status_code", None),
+                getattr(error, "request_id", None),
+            )
+            raise LanguageModelUnavailableError from error
         text = "".join(block.text for block in response.content if block.type == "text")
         tool_calls = tuple(
             ToolCall(

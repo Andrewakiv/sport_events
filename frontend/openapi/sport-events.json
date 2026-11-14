@@ -1,6 +1,75 @@
 {
   "components": {
     "schemas": {
+      "AnswerOutcome": {
+        "enum": [
+          "answered",
+          "refused",
+          "truncated",
+          "step_limit"
+        ],
+        "title": "AnswerOutcome",
+        "type": "string"
+      },
+      "ChatMessageRequest": {
+        "properties": {
+          "content": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessageRequest",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageRequest"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ChatResponse": {
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AnswerOutcome"
+          }
+        },
+        "required": [
+          "answer",
+          "outcome"
+        ],
+        "title": "ChatResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -269,6 +338,56 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/chat": {
+      "post": {
+        "operationId": "chat_api_v1_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded; see Retry-After."
+          },
+          "502": {
+            "description": "The language model request failed."
+          },
+          "503": {
+            "description": "Chat is not configured."
+          }
+        },
+        "summary": "Chat",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
     "/api/v1/football/champions-league/matches": {
       "get": {
         "operationId": "list_matches_api_v1_football_champions_league_matches_get",
