@@ -92,6 +92,34 @@ class ChampionsLeagueMatchQueries:
         match, season, home, away = row
         return _to_match(match, season, home, away)
 
+    async def find_teams(self, name: str, limit: int) -> list[Team]:
+        """Return teams that played a Champions League match and whose name contains `name`."""
+        played = (
+            select(FootballMatch.id)
+            .join(FootballSeason, FootballMatch.season_id == FootballSeason.id)
+            .join(FootballCompetition, FootballSeason.competition_id == FootballCompetition.id)
+            .where(
+                FootballCompetition.code == "CL",
+                or_(
+                    FootballMatch.home_team_id == FootballTeam.id,
+                    FootballMatch.away_team_id == FootballTeam.id,
+                ),
+            )
+            .exists()
+        )
+        statement = (
+            select(FootballTeam)
+            .where(FootballTeam.name.ilike(f"%{_escape_like(name)}%", escape="\\"), played)
+            .order_by(FootballTeam.name, FootballTeam.provider_id)
+            .limit(limit)
+        )
+        teams = (await self._session.scalars(statement)).all()
+        return [Team(id=team.provider_id, name=team.name) for team in teams]
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 
 def _filters(
     query: MatchFilters,

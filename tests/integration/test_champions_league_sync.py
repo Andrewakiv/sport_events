@@ -27,7 +27,7 @@ from sport_events.database.models.football import (
     FootballSeason,
     FootballTeam,
 )
-from sport_events.football_models import MatchFilters
+from sport_events.football_models import MatchFilters, Team
 from sport_events.football_sync.models import (
     CompetitionRecord,
     MatchRecord,
@@ -329,6 +329,35 @@ async def test_match_reader_filters_orders_paginates_and_loads_detail() -> None:
             session.expire_all()
             assert (await reader.list_matches(MatchFilters())).total == 2
             assert await reader.get_match(999998) is None
+
+
+@pytest.mark.integration
+async def test_team_search_is_case_insensitive_escaped_and_limited_to_the_competition() -> None:
+    async with migrated_engine() as engine:
+        snapshot = season_snapshot()
+        premier_league = replace(
+            snapshot,
+            competition=CompetitionRecord(2021, "PL", "Premier League"),
+            matches=(
+                replace(
+                    snapshot.matches[0],
+                    provider_id=999998,
+                    home_team=TeamRecord(57, "Arsenal FC"),
+                ),
+            ),
+        )
+        await PostgresSeasonSnapshotStore(engine).store(snapshot)
+        await PostgresSeasonSnapshotStore(engine).store(premier_league)
+        async with AsyncSession(engine) as session:
+            queries = ChampionsLeagueMatchQueries(session)
+
+            assert await queries.find_teams("BRUGGE", 10) == [Team(id=851, name="Club Brugge KV")]
+            assert [team.id for team in await queries.find_teams("l", 10)] == [58, 851]
+            assert [team.id for team in await queries.find_teams("l", 1)] == [58]
+            # Arsenal only played in another competition; wildcards are literal characters.
+            assert await queries.find_teams("arsenal", 10) == []
+            assert await queries.find_teams("%", 10) == []
+            assert await queries.find_teams("_", 10) == []
 
 
 @pytest.mark.integration
