@@ -21,6 +21,11 @@ class Settings(BaseSettings):
         validation_alias="FOOTBALL_DATA_API_TOKEN",
         repr=False,
     )
+    anthropic_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="ANTHROPIC_API_KEY",
+        repr=False,
+    )
     # Only this season is polled on the schedule; completed seasons are backfilled manually.
     champions_league_sync_season: int | None = Field(default=None, ge=2000, le=2100)
     champions_league_sync_cron: str = "0 */6 * * *"
