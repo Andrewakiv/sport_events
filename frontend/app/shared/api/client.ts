@@ -1,7 +1,13 @@
 import createClient from "openapi-fetch";
 
 import type { paths } from "./schema";
-import type { Match, MatchFilters, MatchPage } from "./types";
+import type {
+  ChatAnswer,
+  ChatMessage,
+  Match,
+  MatchFilters,
+  MatchPage,
+} from "./types";
 
 const api = createClient<paths>({ baseUrl: "/" });
 
@@ -48,6 +54,44 @@ export async function getMatch(matchId: number): Promise<Match | null> {
   if (response.status === 404) return null;
   if (!data) throw new ApiError(apiMessage(error), response.status);
   return data;
+}
+
+export async function postChat(
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): Promise<ChatAnswer> {
+  let result;
+  try {
+    result = await api.POST("/api/v1/chat", { body: { messages }, signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new ApiError(
+      "The assistant could not be reached. Check your connection.",
+    );
+  }
+
+  const { data, response } = result;
+  if (!data) {
+    throw new ApiError(
+      chatErrorMessage(response.status, response.headers.get("Retry-After")),
+      response.status,
+    );
+  }
+  return data;
+}
+
+function chatErrorMessage(status: number, retryAfter: string | null): string {
+  if (status === 429) {
+    const seconds = Number.parseInt(retryAfter ?? "", 10);
+    return Number.isFinite(seconds) && seconds > 0
+      ? `Too many questions. Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.`
+      : "Too many questions. Please wait a moment and try again.";
+  }
+  if (status === 503) return "The assistant is not available right now.";
+  if (status === 422) {
+    return "That message could not be sent. Keep it under 1000 characters.";
+  }
+  return "The assistant is temporarily unavailable. Try again in a moment.";
 }
 
 function apiMessage(error: unknown): string {

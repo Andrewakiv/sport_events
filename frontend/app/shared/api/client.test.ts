@@ -91,3 +91,74 @@ describe("backend-only match client", () => {
     });
   });
 });
+
+describe("chat client", () => {
+  const messages = [{ role: "user" as const, content: "Next match?" }];
+
+  it("posts the conversation and returns the answer", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ answer: "On Tuesday.", outcome: "answered" }),
+    );
+    const { postChat } = await import("./client");
+
+    await expect(postChat(messages)).resolves.toEqual({
+      answer: "On Tuesday.",
+      outcome: "answered",
+    });
+
+    const request = fetchMock.mock.calls[0]?.[0];
+    if (!(request instanceof NativeRequest))
+      throw new Error("Expected an API request");
+    expect(request.method).toBe("POST");
+    expect(new URL(request.url).pathname).toBe("/api/v1/chat");
+    expect(await request.json()).toEqual({ messages });
+  });
+
+  it.each([
+    [
+      429,
+      { "Retry-After": "12" },
+      "Too many questions. Try again in 12 seconds.",
+    ],
+    [429, {}, "Too many questions. Please wait a moment and try again."],
+    [503, {}, "The assistant is not available right now."],
+    [422, {}, "That message could not be sent. Keep it under 1000 characters."],
+    [
+      502,
+      {},
+      "The assistant is temporarily unavailable. Try again in a moment.",
+    ],
+  ])("maps HTTP %i to a friendly message", async (status, headers, message) => {
+    fetchMock.mockResolvedValue(
+      Response.json({ detail: "provider detail" }, { status, headers }),
+    );
+    const { postChat } = await import("./client");
+
+    await expect(postChat(messages)).rejects.toMatchObject({
+      name: "ApiError",
+      status,
+      message,
+    });
+  });
+
+  it("reports an unreachable service without leaking the cause", async () => {
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { postChat } = await import("./client");
+
+    await expect(postChat(messages)).rejects.toMatchObject({
+      name: "ApiError",
+      message: "The assistant could not be reached. Check your connection.",
+    });
+  });
+
+  it("rethrows an aborted request unchanged", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValue(new DOMException("Aborted", "AbortError"));
+    const { postChat } = await import("./client");
+
+    await expect(postChat(messages, controller.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+});

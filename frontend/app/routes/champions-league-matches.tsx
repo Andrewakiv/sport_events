@@ -64,6 +64,12 @@ export default function ChampionsLeagueMatches({
           <p className="hero-summary">
             Upcoming fixtures and results from completed matches.
           </p>
+          <Link
+            className="button button-primary hero-action"
+            to="/football/champions-league/chat"
+          >
+            Ask the assistant
+          </Link>
         </div>
         <div className="competition-emblem" aria-hidden="true">
           <div>★</div>

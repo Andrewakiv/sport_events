@@ -6,6 +6,7 @@ export default [
     "football/champions-league/matches",
     "routes/champions-league-matches.tsx",
   ),
+  route("football/champions-league/chat", "routes/champions-league-chat.tsx"),
   route(
     "football/champions-league/matches/:matchId",
     "routes/champions-league-match.tsx",
